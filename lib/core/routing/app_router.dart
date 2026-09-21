@@ -23,8 +23,6 @@ import '../../features/profile/presentation/settings_page.dart';
 import '../../features/profile/presentation/tracking_dashboard_page.dart';
 import '../../features/item/presentation/item_detail_page.dart';
 import '../../features/explore/presentation/free_items_page.dart';
-import '../../features/share/presentation/request_flow_page.dart';
-import '../../features/share/presentation/request_confirmed_page.dart';
 import '../../features/messages/presentation/messages_page.dart';
 import '../../features/messages/presentation/conversation_page.dart';
 import '../../features/activity/presentation/live_requests_page.dart';
@@ -113,16 +111,7 @@ final GoRouter appRouter = GoRouter(
         child: const UrgentRequestPage(),
       ),
     ),
-    GoRoute(
-      path: '/request',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const RequestFlowPage(),
-    ),
-    GoRoute(
-      path: '/request_confirmed',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const RequestConfirmedPage(),
-    ),
+
     GoRoute(
       path: '/messages',
       parentNavigatorKey: _rootNavigatorKey,
