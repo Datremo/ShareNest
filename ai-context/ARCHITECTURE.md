@@ -1,0 +1,750 @@
+# CYQ Architecture
+
+> CYQ Artifact: **ARCHITECTURE**
+> CYQ Engine: **1.7.2**
+> Project: **neighbor_share**
+> Snapshot ID: `c0ed18c403e2b3f7`
+> Generated: `2026-09-18 08:06 UTC`
+>
+## 1. Architecture Health
+
+- Status: **HEALTHY**
+- Warnings: **0**
+- Informational findings: **0**
+- Indexed files: **134**
+- Relationships: **675**
+
+## 2. Important Files
+
+- `lib/core/routing/app_router.dart` — Dart, 358 lines; imports=55, APIs=0, DB objects=0, symbols=5
+- `lib/features/home/presentation/home_page.dart` — Dart, 755 lines; imports=10, APIs=0, DB objects=0, symbols=17
+- `lib/features/profile/presentation/edit_profile_screen.dart` — Dart, 219 lines; imports=7, APIs=0, DB objects=0, symbols=7
+- `.dart_tool/dartpad/web_plugin_registrant.dart` — Dart, 25 lines; imports=6, APIs=0, DB objects=0, symbols=1
+- `.dart_tool/flutter_build/c38c527a15d4bee8ead93ef42488bd24/web_plugin_registrant.dart` — Dart, 25 lines; imports=6, APIs=0, DB objects=0, symbols=1
+- `lib/core/presentation/main_scaffold.dart` — Dart, 279 lines; imports=6, APIs=0, DB objects=0, symbols=12
+- `lib/features/auth/presentation/signup_screen.dart` — Dart, 678 lines; imports=6, APIs=0, DB objects=0, symbols=19
+- `lib/features/profile/presentation/profile_page.dart` — Dart, 468 lines; imports=6, APIs=0, DB objects=0, symbols=13
+- `lib/features/share/presentation/share_flow_controller.dart` — Dart, 184 lines; imports=6, APIs=0, DB objects=0, symbols=10
+- `lib/main.dart` — Dart, 34 lines; imports=6, APIs=0, DB objects=0, symbols=3
+- `lib/core/presentation/radial_share_menu.dart` — Dart, 151 lines; imports=5, APIs=0, DB objects=0, symbols=4
+- `lib/features/explore/presentation/borrow_results_page.dart` — Dart, 434 lines; imports=5, APIs=0, DB objects=0, symbols=7
+- `lib/features/explore/presentation/exchange_hub_page.dart` — Dart, 486 lines; imports=5, APIs=0, DB objects=0, symbols=8
+- `lib/features/explore/presentation/free_items_page.dart` — Dart, 512 lines; imports=5, APIs=0, DB objects=0, symbols=9
+- `lib/features/profile/presentation/edit_profile_page.dart` — Dart, 376 lines; imports=5, APIs=0, DB objects=0, symbols=9
+- `lib/features/profile/presentation/settings_page.dart` — Dart, 286 lines; imports=5, APIs=0, DB objects=0, symbols=10
+- `lib/features/requests/presentation/owner_request_detail_page.dart` — Dart, 321 lines; imports=5, APIs=0, DB objects=0, symbols=6
+- `lib/features/requests/presentation/request_exchange_page.dart` — Dart, 663 lines; imports=5, APIs=0, DB objects=0, symbols=13
+- `lib/features/share/presentation/create_post_flow_page.dart` — Dart, 1641 lines; imports=5, APIs=0, DB objects=0, symbols=40
+- `lib/features/splash/presentation/splash_screen.dart` — Dart, 246 lines; imports=5, APIs=0, DB objects=0, symbols=9
+- `.dart_tool/flutter_build/c38c527a15d4bee8ead93ef42488bd24/main.dart` — Dart, 31 lines; imports=4, APIs=0, DB objects=0, symbols=1
+- `lib/features/activity/presentation/activity_page.dart` — Dart, 1171 lines; imports=4, APIs=0, DB objects=0, symbols=18
+- `lib/features/activity/presentation/item_received_page.dart` — Dart, 268 lines; imports=4, APIs=0, DB objects=0, symbols=2
+- `lib/features/activity/presentation/pickup_details_page.dart` — Dart, 423 lines; imports=4, APIs=0, DB objects=0, symbols=3
+- `lib/features/auth/presentation/auth_gate.dart` — Dart, 49 lines; imports=4, APIs=0, DB objects=0, symbols=6
+- `lib/features/auth/presentation/login_screen.dart` — Dart, 334 lines; imports=4, APIs=0, DB objects=0, symbols=6
+- `lib/features/auth/presentation/login_username_screen.dart` — Dart, 348 lines; imports=4, APIs=0, DB objects=0, symbols=7
+- `lib/features/explore/presentation/borrow_filters_bottom_sheet.dart` — Dart, 321 lines; imports=4, APIs=0, DB objects=0, symbols=5
+- `lib/features/explore/presentation/borrow_hub_page.dart` — Dart, 312 lines; imports=4, APIs=0, DB objects=0, symbols=9
+- `lib/features/explore/presentation/exchange_filters_bottom_sheet.dart` — Dart, 364 lines; imports=4, APIs=0, DB objects=0, symbols=7
+
+## 3. API Contracts
+
+- None discovered.
+
+## 4. API Contract Verification
+
+Each row is an exact deterministic contract match on HTTP method + canonical path.
+A missing implementation is not proof that runtime routing is impossible; it means no implementation was discovered in the indexed source.
+
+| Contract | Consumers | Implementations | Status |
+|---|---|---|---|
+
+## 5. Dependency Graph
+
+- `.dart_tool/dartpad/web_plugin_registrant.dart` --[CONTAINS]--> `symbol://.dart_tool/dartpad/web_plugin_registrant.dart::registerPlugins` — `registerPlugins`
+- `.dart_tool/flutter_build/c38c527a15d4bee8ead93ef42488bd24/main.dart` --[CONTAINS]--> `symbol://.dart_tool/flutter_build/c38c527a15d4bee8ead93ef42488bd24/main.dart::main` — `main`
+- `.dart_tool/flutter_build/c38c527a15d4bee8ead93ef42488bd24/web_plugin_registrant.dart` --[CONTAINS]--> `symbol://.dart_tool/flutter_build/c38c527a15d4bee8ead93ef42488bd24/web_plugin_registrant.dart::registerPlugins` — `registerPlugins`
+- `android/app/src/main/java/com/example/demo/MainActivity.java` --[CONTAINS]--> `symbol://android/app/src/main/java/com/example/demo/MainActivity.java::MainActivity` — `MainActivity`
+- `android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java` --[CONTAINS]--> `symbol://android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java::GeneratedPluginRegistrant` — `GeneratedPluginRegistrant`
+- `android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java` --[CONTAINS]--> `symbol://android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java::registerWith` — `registerWith`
+- `ios/Flutter/ephemeral/flutter_lldb_helper.py` --[CONTAINS]--> `symbol://ios/Flutter/ephemeral/flutter_lldb_helper.py::__lldb_init_module` — `__lldb_init_module`
+- `ios/Flutter/ephemeral/flutter_lldb_helper.py` --[CONTAINS]--> `symbol://ios/Flutter/ephemeral/flutter_lldb_helper.py::handle_new_rx_page` — `handle_new_rx_page`
+- `lib/core/data/models/listing.dart` --[CONTAINS]--> `symbol://lib/core/data/models/listing.dart::Listing` — `Listing`
+- `lib/core/data/models/profile.dart` --[CONTAINS]--> `symbol://lib/core/data/models/profile.dart::Profile` — `Profile`
+- `lib/core/data/repositories/listing_repository.dart` --[IMPORTS]--> `lib/core/data/models/listing.dart` — `../models/listing.dart`
+- `lib/core/data/repositories/listing_repository.dart` --[CONTAINS]--> `symbol://lib/core/data/repositories/listing_repository.dart::ListingRepository` — `ListingRepository`
+- `lib/core/data/repositories/listing_repository.dart` --[CONTAINS]--> `symbol://lib/core/data/repositories/listing_repository.dart::if` — `if`
+- `lib/core/data/repositories/profile_repository.dart` --[IMPORTS]--> `lib/core/data/models/profile.dart` — `../models/profile.dart`
+- `lib/core/data/repositories/profile_repository.dart` --[CONTAINS]--> `symbol://lib/core/data/repositories/profile_repository.dart::ProfileRepository` — `ProfileRepository`
+- `lib/core/data/repositories/profile_repository.dart` --[CONTAINS]--> `symbol://lib/core/data/repositories/profile_repository.dart::getProfile` — `getProfile`
+- `lib/core/presentation/main_scaffold.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../theme/app_colors.dart`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::Container` — `Container`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::GestureDetector` — `GestureDetector`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::MainScaffold` — `MainScaffold`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::_MainScaffoldState` — `_MainScaffoldState`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::_buildCenterFAB` — `_buildCenterFAB`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::_buildLiquidNavBar` — `_buildLiquidNavBar`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::_buildNavItem` — `_buildNavItem`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::_onTapNav` — `_onTapNav`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::_toggleShareMenu` — `_toggleShareMenu`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::build` — `build`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::dispose` — `dispose`
+- `lib/core/presentation/main_scaffold.dart` --[CONTAINS]--> `symbol://lib/core/presentation/main_scaffold.dart::initState` — `initState`
+- `lib/core/presentation/radial_share_menu.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../theme/app_colors.dart`
+- `lib/core/presentation/radial_share_menu.dart` --[CONTAINS]--> `symbol://lib/core/presentation/radial_share_menu.dart::AnimatedBuilder` — `AnimatedBuilder`
+- `lib/core/presentation/radial_share_menu.dart` --[CONTAINS]--> `symbol://lib/core/presentation/radial_share_menu.dart::Positioned` — `Positioned`
+- `lib/core/presentation/radial_share_menu.dart` --[CONTAINS]--> `symbol://lib/core/presentation/radial_share_menu.dart::RadialShareMenu` — `RadialShareMenu`
+- `lib/core/presentation/radial_share_menu.dart` --[CONTAINS]--> `symbol://lib/core/presentation/radial_share_menu.dart::build` — `build`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/core/presentation/main_scaffold.dart` — `../presentation/main_scaffold.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/activity/presentation/activity_page.dart` — `../../features/activity/presentation/activity_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/activity/presentation/item_received_page.dart` — `../../features/activity/presentation/item_received_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/activity/presentation/live_requests_page.dart` — `../../features/activity/presentation/live_requests_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/activity/presentation/pickup_details_page.dart` — `../../features/activity/presentation/pickup_details_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/auth/presentation/auth_gate.dart` — `../../features/auth/presentation/auth_gate.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/auth/presentation/forgot_password_screen.dart` — `../../features/auth/presentation/forgot_password_screen.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/auth/presentation/login_screen.dart` — `../../features/auth/presentation/login_screen.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/auth/presentation/login_username_screen.dart` — `../../features/auth/presentation/login_username_screen.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/auth/presentation/reset_password_otp_screen.dart` — `../../features/auth/presentation/reset_password_otp_screen.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/auth/presentation/signup_screen.dart` — `../../features/auth/presentation/signup_screen.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/explore/presentation/borrow_hub_page.dart` — `../../features/explore/presentation/borrow_hub_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/explore/presentation/borrow_results_page.dart` — `../../features/explore/presentation/borrow_results_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/explore/presentation/exchange_hub_page.dart` — `../../features/explore/presentation/exchange_hub_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/explore/presentation/explore_page.dart` — `../../features/explore/presentation/explore_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/explore/presentation/free_items_page.dart` — `../../features/explore/presentation/free_items_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/home/presentation/home_page.dart` — `../../features/home/presentation/home_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/home/presentation/urgent_request_page.dart` — `../../features/home/presentation/urgent_request_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/item/presentation/borrow_item_detail_page.dart` — `../../features/item/presentation/borrow_item_detail_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/item/presentation/exchange_completed_page.dart` — `../../features/item/presentation/exchange_completed_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/item/presentation/exchange_item_detail_page.dart` — `../../features/item/presentation/exchange_item_detail_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/item/presentation/free_item_detail_page.dart` — `../../features/item/presentation/free_item_detail_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/item/presentation/item_detail_page.dart` — `../../features/item/presentation/item_detail_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/messages/presentation/conversation_page.dart` — `../../features/messages/presentation/conversation_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/messages/presentation/messages_page.dart` — `../../features/messages/presentation/messages_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/onboarding/presentation/onboarding_screen.dart` — `../../features/onboarding/presentation/onboarding_screen.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/edit_profile_screen.dart` — `../../features/profile/presentation/edit_profile_screen.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/impact_summary_page.dart` — `../../features/profile/presentation/impact_summary_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/lending_completed_page.dart` — `../../features/profile/presentation/lending_completed_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/mark_as_returned_page.dart` — `../../features/profile/presentation/mark_as_returned_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/my_borrowing_page.dart` — `../../features/profile/presentation/my_borrowing_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/my_lending_page.dart` — `../../features/profile/presentation/my_lending_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/my_listings_page.dart` — `../../features/profile/presentation/my_listings_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/my_posts_page.dart` — `../../features/profile/presentation/my_posts_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/my_requests_page.dart` — `../../features/profile/presentation/my_requests_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/owner_listing_detail_page.dart` — `../../features/profile/presentation/owner_listing_detail_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/profile_page.dart` — `../../features/profile/presentation/profile_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/settings_page.dart` — `../../features/profile/presentation/settings_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/profile/presentation/update_lending_page.dart` — `../../features/profile/presentation/update_lending_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/requests/presentation/owner_decline_request_page.dart` — `../../features/requests/presentation/owner_decline_request_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/requests/presentation/owner_exchange_request_page.dart` — `../../features/requests/presentation/owner_exchange_request_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/requests/presentation/owner_request_detail_page.dart` — `../../features/requests/presentation/owner_request_detail_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/requests/presentation/owner_requests_list_page.dart` — `../../features/requests/presentation/owner_requests_list_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/requests/presentation/request_accepted_page.dart` — `../../features/requests/presentation/request_accepted_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/requests/presentation/request_borrow_page.dart` — `../../features/requests/presentation/request_borrow_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/requests/presentation/request_exchange_page.dart` — `../../features/requests/presentation/request_exchange_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/requests/presentation/request_free_item_page.dart` — `../../features/requests/presentation/request_free_item_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/share/presentation/create_post_flow_page.dart` — `../../features/share/presentation/create_post_flow_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/share/presentation/request_confirmed_page.dart` — `../../features/share/presentation/request_confirmed_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/share/presentation/request_flow_page.dart` — `../../features/share/presentation/request_flow_page.dart`
+- `lib/core/routing/app_router.dart` --[IMPORTS]--> `lib/features/splash/presentation/splash_screen.dart` — `../../features/splash/presentation/splash_screen.dart`
+- `lib/core/routing/app_router.dart` --[CONTAINS]--> `symbol://lib/core/routing/app_router.dart::BorrowHubPage` — `BorrowHubPage`
+- `lib/core/routing/app_router.dart` --[CONTAINS]--> `symbol://lib/core/routing/app_router.dart::ExchangeHubPage` — `ExchangeHubPage`
+- `lib/core/routing/app_router.dart` --[CONTAINS]--> `symbol://lib/core/routing/app_router.dart::ItemDetailPage` — `ItemDetailPage`
+- `lib/core/routing/app_router.dart` --[CONTAINS]--> `symbol://lib/core/routing/app_router.dart::LiveRequestsPage` — `LiveRequestsPage`
+- `lib/core/routing/app_router.dart` --[CONTAINS]--> `symbol://lib/core/routing/app_router.dart::SplashScreen` — `SplashScreen`
+- `lib/core/routing/page_transitions.dart` --[CONTAINS]--> `symbol://lib/core/routing/page_transitions.dart::SharedAxisTransitionPage` — `SharedAxisTransitionPage`
+- `lib/core/routing/page_transitions.dart` --[CONTAINS]--> `symbol://lib/core/routing/page_transitions.dart::SpringBottomUpTransitionPage` — `SpringBottomUpTransitionPage`
+- `lib/core/routing/page_transitions.dart` --[CONTAINS]--> `symbol://lib/core/routing/page_transitions.dart::SpringCurve` — `SpringCurve`
+- `lib/core/routing/page_transitions.dart` --[CONTAINS]--> `symbol://lib/core/routing/page_transitions.dart::transformInternal` — `transformInternal`
+- `lib/core/theme/app_colors.dart` --[CONTAINS]--> `symbol://lib/core/theme/app_colors.dart::AppColors` — `AppColors`
+- `lib/core/theme/app_motion.dart` --[CONTAINS]--> `symbol://lib/core/theme/app_motion.dart::AppMotion` — `AppMotion`
+- `lib/core/theme/app_theme.dart` --[CONTAINS]--> `symbol://lib/core/theme/app_theme.dart::AppTheme` — `AppTheme`
+- `lib/features/activity/presentation/activity_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::ActivityPage` — `ActivityPage`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::Container` — `Container`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::SizedBox` — `SizedBox`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_ActivityPageState` — `_ActivityPageState`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildActiveActivitySection` — `_buildActiveActivitySection`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildActiveCard` — `_buildActiveCard`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildLiveRadarIcon` — `_buildLiveRadarIcon`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildRecentActivitySection` — `_buildRecentActivitySection`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildRecentItem` — `_buildRecentItem`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildRequestCard` — `_buildRequestCard`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildRequestsSection` — `_buildRequestsSection`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildSearchBar` — `_buildSearchBar`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildSectionHeader` — `_buildSectionHeader`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildSliverAppBar` — `_buildSliverAppBar`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildTabs` — `_buildTabs`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildUrgentBanner` — `_buildUrgentBanner`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::_buildUrgentCard` — `_buildUrgentCard`
+- `lib/features/activity/presentation/activity_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/activity_page.dart::build` — `build`
+- `lib/features/activity/presentation/item_received_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/activity/presentation/item_received_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/item_received_page.dart::ItemReceivedPage` — `ItemReceivedPage`
+- `lib/features/activity/presentation/item_received_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/item_received_page.dart::build` — `build`
+- `lib/features/activity/presentation/live_requests_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::Container` — `Container`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::LiveRequestsPage` — `LiveRequestsPage`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::Scaffold` — `Scaffold`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::SizedBox` — `SizedBox`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::_LiveRequestsPageState` — `_LiveRequestsPageState`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::_MapPin` — `_MapPin`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::_buildDistanceChips` — `_buildDistanceChips`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::_buildListHeader` — `_buildListHeader`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::_buildLiveCard` — `_buildLiveCard`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::_buildLiveStatusRow` — `_buildLiveStatusRow`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::_buildMapSection` — `_buildMapSection`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::_buildSafetyBanner` — `_buildSafetyBanner`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::_buildTypeChips` — `_buildTypeChips`
+- `lib/features/activity/presentation/live_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/live_requests_page.dart::build` — `build`
+- `lib/features/activity/presentation/pickup_details_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/activity/presentation/pickup_details_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/pickup_details_page.dart::PickupDetailsPage` — `PickupDetailsPage`
+- `lib/features/activity/presentation/pickup_details_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/pickup_details_page.dart::_buildBulletPoint` — `_buildBulletPoint`
+- `lib/features/activity/presentation/pickup_details_page.dart` --[CONTAINS]--> `symbol://lib/features/activity/presentation/pickup_details_page.dart::build` — `build`
+- `lib/features/auth/presentation/auth_gate.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/auth_gate.dart::AuthGate` — `AuthGate`
+- `lib/features/auth/presentation/auth_gate.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/auth_gate.dart::_AuthGateState` — `_AuthGateState`
+- `lib/features/auth/presentation/auth_gate.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/auth_gate.dart::build` — `build`
+- `lib/features/auth/presentation/auth_gate.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/auth_gate.dart::if` — `if`
+- `lib/features/auth/presentation/auth_gate.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/auth_gate.dart::initState` — `initState`
+- `lib/features/auth/presentation/auth_landing_screen.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/auth/presentation/auth_landing_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/auth_landing_screen.dart::AuthLandingScreen` — `AuthLandingScreen`
+- `lib/features/auth/presentation/auth_landing_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/auth_landing_screen.dart::Scaffold` — `Scaffold`
+- `lib/features/auth/presentation/auth_landing_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/auth_landing_screen.dart::build` — `build`
+- `lib/features/auth/presentation/forgot_password_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/forgot_password_screen.dart::ForgotPasswordScreen` — `ForgotPasswordScreen`
+- `lib/features/auth/presentation/forgot_password_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/forgot_password_screen.dart::_ForgotPasswordScreenState` — `_ForgotPasswordScreenState`
+- `lib/features/auth/presentation/forgot_password_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/forgot_password_screen.dart::_sendOtp` — `_sendOtp`
+- `lib/features/auth/presentation/forgot_password_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/forgot_password_screen.dart::build` — `build`
+- `lib/features/auth/presentation/forgot_password_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/forgot_password_screen.dart::catch` — `catch`
+- `lib/features/auth/presentation/login_screen.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/auth/presentation/login_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_screen.dart::LoginScreen` — `LoginScreen`
+- `lib/features/auth/presentation/login_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_screen.dart::_LoginScreenState` — `_LoginScreenState`
+- `lib/features/auth/presentation/login_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_screen.dart::_login` — `_login`
+- `lib/features/auth/presentation/login_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_screen.dart::_showMessage` — `_showMessage`
+- `lib/features/auth/presentation/login_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_screen.dart::build` — `build`
+- `lib/features/auth/presentation/login_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_screen.dart::catch` — `catch`
+- `lib/features/auth/presentation/login_username_screen.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/auth/presentation/login_username_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_username_screen.dart::LoginUsernameScreen` — `LoginUsernameScreen`
+- `lib/features/auth/presentation/login_username_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_username_screen.dart::Scaffold` — `Scaffold`
+- `lib/features/auth/presentation/login_username_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_username_screen.dart::_LoginUsernameScreenState` — `_LoginUsernameScreenState`
+- `lib/features/auth/presentation/login_username_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_username_screen.dart::_login` — `_login`
+- `lib/features/auth/presentation/login_username_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_username_screen.dart::_showMessage` — `_showMessage`
+- `lib/features/auth/presentation/login_username_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_username_screen.dart::build` — `build`
+- `lib/features/auth/presentation/login_username_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/login_username_screen.dart::catch` — `catch`
+- `lib/features/auth/presentation/reset_password_otp_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/reset_password_otp_screen.dart::ResetPasswordOtpScreen` — `ResetPasswordOtpScreen`
+- `lib/features/auth/presentation/reset_password_otp_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/reset_password_otp_screen.dart::_ResetPasswordOtpScreenState` — `_ResetPasswordOtpScreenState`
+- `lib/features/auth/presentation/reset_password_otp_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/reset_password_otp_screen.dart::_resetPassword` — `_resetPassword`
+- `lib/features/auth/presentation/reset_password_otp_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/reset_password_otp_screen.dart::build` — `build`
+- `lib/features/auth/presentation/reset_password_otp_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/reset_password_otp_screen.dart::catch` — `catch`
+- `lib/features/auth/presentation/signup_screen.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/auth/presentation/signup_screen.dart` --[IMPORTS]--> `lib/core/theme/app_motion.dart` — `../../../core/theme/app_motion.dart`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::BoxDecoration` — `BoxDecoration`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::Duration` — `Duration`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::GestureDetector` — `GestureDetector`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::Scaffold` — `Scaffold`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::SignupScreen` — `SignupScreen`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::SingleChildScrollView` — `SingleChildScrollView`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_SignupScreenState` — `_SignupScreenState`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_buildAccountStep` — `_buildAccountStep`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_buildEmailVerificationStep` — `_buildEmailVerificationStep`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_buildInterestsStep` — `_buildInterestsStep`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_buildLocationStep` — `_buildLocationStep`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_buildNextButton` — `_buildNextButton`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_buildUsernameStep` — `_buildUsernameStep`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_getIconForInterest` — `_getIconForInterest`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_handleSignup` — `_handleSignup`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_nextPage` — `_nextPage`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::_onUsernameChanged` — `_onUsernameChanged`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::build` — `build`
+- `lib/features/auth/presentation/signup_screen.dart` --[CONTAINS]--> `symbol://lib/features/auth/presentation/signup_screen.dart::dispose` — `dispose`
+- `lib/features/explore/presentation/borrow_filters_bottom_sheet.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/explore/presentation/borrow_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_filters_bottom_sheet.dart::BorrowFiltersBottomSheet` — `BorrowFiltersBottomSheet`
+- `lib/features/explore/presentation/borrow_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_filters_bottom_sheet.dart::Container` — `Container`
+- `lib/features/explore/presentation/borrow_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_filters_bottom_sheet.dart::_BorrowFiltersBottomSheetState` — `_BorrowFiltersBottomSheetState`
+- `lib/features/explore/presentation/borrow_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_filters_bottom_sheet.dart::_buildChip` — `_buildChip`
+- `lib/features/explore/presentation/borrow_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_filters_bottom_sheet.dart::build` — `build`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_hub_page.dart::BorrowHubPage` — `BorrowHubPage`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_hub_page.dart::GestureDetector` — `GestureDetector`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_hub_page.dart::Icon` — `Icon`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_hub_page.dart::NeverScrollableScrollPhysics` — `NeverScrollableScrollPhysics`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_hub_page.dart::_buildCategoriesGrid` — `_buildCategoriesGrid`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_hub_page.dart::_buildHeader` — `_buildHeader`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_hub_page.dart::_buildPopularChip` — `_buildPopularChip`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_hub_page.dart::_buildSearchBar` — `_buildSearchBar`
+- `lib/features/explore/presentation/borrow_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_hub_page.dart::build` — `build`
+- `lib/features/explore/presentation/borrow_results_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/explore/presentation/borrow_results_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_results_page.dart::BorrowResultsPage` — `BorrowResultsPage`
+- `lib/features/explore/presentation/borrow_results_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_results_page.dart::Container` — `Container`
+- `lib/features/explore/presentation/borrow_results_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_results_page.dart::_BorrowResultsPageState` — `_BorrowResultsPageState`
+- `lib/features/explore/presentation/borrow_results_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_results_page.dart::_buildSearchBar` — `_buildSearchBar`
+- `lib/features/explore/presentation/borrow_results_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_results_page.dart::_buildViewToggles` — `_buildViewToggles`
+- `lib/features/explore/presentation/borrow_results_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_results_page.dart::_showFilters` — `_showFilters`
+- `lib/features/explore/presentation/borrow_results_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/borrow_results_page.dart::build` — `build`
+- `lib/features/explore/presentation/exchange_filters_bottom_sheet.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/explore/presentation/exchange_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_filters_bottom_sheet.dart::Container` — `Container`
+- `lib/features/explore/presentation/exchange_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_filters_bottom_sheet.dart::ExchangeFiltersBottomSheet` — `ExchangeFiltersBottomSheet`
+- `lib/features/explore/presentation/exchange_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_filters_bottom_sheet.dart::GestureDetector` — `GestureDetector`
+- `lib/features/explore/presentation/exchange_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_filters_bottom_sheet.dart::_ExchangeFiltersBottomSheetState` — `_ExchangeFiltersBottomSheetState`
+- `lib/features/explore/presentation/exchange_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_filters_bottom_sheet.dart::_buildCategoryItem` — `_buildCategoryItem`
+- `lib/features/explore/presentation/exchange_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_filters_bottom_sheet.dart::_buildChip` — `_buildChip`
+- `lib/features/explore/presentation/exchange_filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_filters_bottom_sheet.dart::build` — `build`
+- `lib/features/explore/presentation/exchange_hub_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/explore/presentation/exchange_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_hub_page.dart::ExchangeHubPage` — `ExchangeHubPage`
+- `lib/features/explore/presentation/exchange_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_hub_page.dart::_ExchangeHubPageState` — `_ExchangeHubPageState`
+- `lib/features/explore/presentation/exchange_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_hub_page.dart::_buildCategoryChip` — `_buildCategoryChip`
+- `lib/features/explore/presentation/exchange_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_hub_page.dart::_buildFilterChip` — `_buildFilterChip`
+- `lib/features/explore/presentation/exchange_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_hub_page.dart::_buildSearchBar` — `_buildSearchBar`
+- `lib/features/explore/presentation/exchange_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_hub_page.dart::_buildViewToggles` — `_buildViewToggles`
+- `lib/features/explore/presentation/exchange_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_hub_page.dart::_showFilters` — `_showFilters`
+- `lib/features/explore/presentation/exchange_hub_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/exchange_hub_page.dart::build` — `build`
+- `lib/features/explore/presentation/explore_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::Column` — `Column`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::ExplorePage` — `ExplorePage`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::Scaffold` — `Scaffold`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_ExplorePageState` — `_ExplorePageState`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_FiltersFullScreen` — `_FiltersFullScreen`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_FiltersFullScreenState` — `_FiltersFullScreenState`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_buildCategoryChip` — `_buildCategoryChip`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_buildConditionPill` — `_buildConditionPill`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_buildItemRow` — `_buildItemRow`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_buildListView` — `_buildListView`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_buildLookingFor` — `_buildLookingFor`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_buildMapView` — `_buildMapView`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::_openFilters` — `_openFilters`
+- `lib/features/explore/presentation/explore_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/explore_page.dart::build` — `build`
+- `lib/features/explore/presentation/filters_bottom_sheet.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/explore/presentation/filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/filters_bottom_sheet.dart::Container` — `Container`
+- `lib/features/explore/presentation/filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/filters_bottom_sheet.dart::FiltersBottomSheet` — `FiltersBottomSheet`
+- `lib/features/explore/presentation/filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/filters_bottom_sheet.dart::Wrap` — `Wrap`
+- `lib/features/explore/presentation/filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/filters_bottom_sheet.dart::_FiltersBottomSheetState` — `_FiltersBottomSheetState`
+- `lib/features/explore/presentation/filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/filters_bottom_sheet.dart::_buildCategoriesGrid` — `_buildCategoriesGrid`
+- `lib/features/explore/presentation/filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/filters_bottom_sheet.dart::_buildChip` — `_buildChip`
+- `lib/features/explore/presentation/filters_bottom_sheet.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/filters_bottom_sheet.dart::build` — `build`
+- `lib/features/explore/presentation/free_items_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/explore/presentation/free_items_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/free_items_page.dart::FreeItemsPage` — `FreeItemsPage`
+- `lib/features/explore/presentation/free_items_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/free_items_page.dart::SingleChildScrollView` — `SingleChildScrollView`
+- `lib/features/explore/presentation/free_items_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/free_items_page.dart::_FreeItemsPageState` — `_FreeItemsPageState`
+- `lib/features/explore/presentation/free_items_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/free_items_page.dart::_buildCategories` — `_buildCategories`
+- `lib/features/explore/presentation/free_items_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/free_items_page.dart::_buildHeader` — `_buildHeader`
+- `lib/features/explore/presentation/free_items_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/free_items_page.dart::_buildSearchBar` — `_buildSearchBar`
+- `lib/features/explore/presentation/free_items_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/free_items_page.dart::_buildViewToggles` — `_buildViewToggles`
+- `lib/features/explore/presentation/free_items_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/free_items_page.dart::_showFilters` — `_showFilters`
+- `lib/features/explore/presentation/free_items_page.dart` --[CONTAINS]--> `symbol://lib/features/explore/presentation/free_items_page.dart::build` — `build`
+- `lib/features/home/presentation/home_page.dart` --[IMPORTS]--> `lib/core/data/models/listing.dart` — `../../../core/data/models/listing.dart`
+- `lib/features/home/presentation/home_page.dart` --[IMPORTS]--> `lib/core/data/models/profile.dart` — `../../../core/data/models/profile.dart`
+- `lib/features/home/presentation/home_page.dart` --[IMPORTS]--> `lib/core/data/repositories/listing_repository.dart` — `../../../core/data/repositories/listing_repository.dart`
+- `lib/features/home/presentation/home_page.dart` --[IMPORTS]--> `lib/core/data/repositories/profile_repository.dart` — `../../../core/data/repositories/profile_repository.dart`
+- `lib/features/home/presentation/home_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::Column` — `Column`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::HomePage` — `HomePage`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::TextStyle` — `TextStyle`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_HomePageState` — `_HomePageState`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_buildActionGrid` — `_buildActionGrid`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_buildCommunityTips` — `_buildCommunityTips`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_buildGreeting` — `_buildGreeting`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_buildHeader` — `_buildHeader`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_buildImpactBanner` — `_buildImpactBanner`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_buildRecommendations` — `_buildRecommendations`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_buildSearchBar` — `_buildSearchBar`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_buildStat` — `_buildStat`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_buildUrgentRequestsNearby` — `_buildUrgentRequestsNearby`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::_loadProfile` — `_loadProfile`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::build` — `build`
+- `lib/features/home/presentation/home_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/home_page.dart::initState` — `initState`
+- `lib/features/home/presentation/urgent_request_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::Scaffold` — `Scaffold`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::SizedBox` — `SizedBox`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::UrgentRequestPage` — `UrgentRequestPage`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_UrgentRequestPageState` — `_UrgentRequestPageState`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_buildCategoryItem` — `_buildCategoryItem`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_buildFilterChip` — `_buildFilterChip`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_buildFormPage` — `_buildFormPage`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_buildGradientButton` — `_buildGradientButton`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_buildOutlineButton` — `_buildOutlineButton`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_buildReviewGridRow` — `_buildReviewGridRow`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_buildReviewPage` — `_buildReviewPage`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_buildToggleRow` — `_buildToggleRow`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_nextStep` — `_nextStep`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_prevStep` — `_prevStep`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::_showSuccessDialog` — `_showSuccessDialog`
+- `lib/features/home/presentation/urgent_request_page.dart` --[CONTAINS]--> `symbol://lib/features/home/presentation/urgent_request_page.dart::build` — `build`
+- `lib/features/item/presentation/borrow_item_detail_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/item/presentation/borrow_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/borrow_item_detail_page.dart::BorrowItemDetailPage` — `BorrowItemDetailPage`
+- `lib/features/item/presentation/borrow_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/borrow_item_detail_page.dart::BoxDecoration` — `BoxDecoration`
+- `lib/features/item/presentation/borrow_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/borrow_item_detail_page.dart::Scaffold` — `Scaffold`
+- `lib/features/item/presentation/borrow_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/borrow_item_detail_page.dart::_buildHighlightItem` — `_buildHighlightItem`
+- `lib/features/item/presentation/borrow_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/borrow_item_detail_page.dart::_buildIncludedChip` — `_buildIncludedChip`
+- `lib/features/item/presentation/borrow_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/borrow_item_detail_page.dart::build` — `build`
+- `lib/features/item/presentation/exchange_completed_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/item/presentation/exchange_completed_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/exchange_completed_page.dart::ExchangeCompletedPage` — `ExchangeCompletedPage`
+- `lib/features/item/presentation/exchange_completed_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/exchange_completed_page.dart::InkWell` — `InkWell`
+- `lib/features/item/presentation/exchange_completed_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/exchange_completed_page.dart::_buildActionRow` — `_buildActionRow`
+- `lib/features/item/presentation/exchange_completed_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/exchange_completed_page.dart::build` — `build`
+- `lib/features/item/presentation/exchange_item_detail_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/item/presentation/exchange_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/exchange_item_detail_page.dart::ExchangeItemDetailPage` — `ExchangeItemDetailPage`
+- `lib/features/item/presentation/exchange_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/exchange_item_detail_page.dart::Icon` — `Icon`
+- `lib/features/item/presentation/exchange_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/exchange_item_detail_page.dart::Scaffold` — `Scaffold`
+- `lib/features/item/presentation/exchange_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/exchange_item_detail_page.dart::Text` — `Text`
+- `lib/features/item/presentation/exchange_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/exchange_item_detail_page.dart::build` — `build`
+- `lib/features/item/presentation/free_item_detail_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/item/presentation/free_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/free_item_detail_page.dart::BoxDecoration` — `BoxDecoration`
+- `lib/features/item/presentation/free_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/free_item_detail_page.dart::FreeItemDetailPage` — `FreeItemDetailPage`
+- `lib/features/item/presentation/free_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/free_item_detail_page.dart::Scaffold` — `Scaffold`
+- `lib/features/item/presentation/free_item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/free_item_detail_page.dart::build` — `build`
+- `lib/features/item/presentation/item_detail_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::Icon` — `Icon`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::ItemDetailPage` — `ItemDetailPage`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::Positioned` — `Positioned`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::SizedBox` — `SizedBox`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::SliverAppBar` — `SliverAppBar`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_ItemDetailPageState` — `_ItemDetailPageState`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildAvailability` — `_buildAvailability`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildBorrowingTerms` — `_buildBorrowingTerms`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildCategoryTag` — `_buildCategoryTag`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildDescription` — `_buildDescription`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildImageThumbnails` — `_buildImageThumbnails`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildItemTags` — `_buildItemTags`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildLocation` — `_buildLocation`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildOwnerProfile` — `_buildOwnerProfile`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildQuickInfo` — `_buildQuickInfo`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildSafetyGuidelines` — `_buildSafetyGuidelines`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildSimilarItems` — `_buildSimilarItems`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildSliverAppBar` — `_buildSliverAppBar`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildStickyBottomBar` — `_buildStickyBottomBar`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_buildTitleAndCategory` — `_buildTitleAndCategory`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_bulletPoint` — `_bulletPoint`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_infoChip` — `_infoChip`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_similarItemCard` — `_similarItemCard`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::_termRow` — `_termRow`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::build` — `build`
+- `lib/features/item/presentation/item_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/item/presentation/item_detail_page.dart::dispose` — `dispose`
+- `lib/features/messages/presentation/conversation_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::Container` — `Container`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::ConversationPage` — `ConversationPage`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::Icon` — `Icon`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::Scaffold` — `Scaffold`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::_actionIcon` — `_actionIcon`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::_buildBottomActionStrip` — `_buildBottomActionStrip`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::_buildCustomMessageCard` — `_buildCustomMessageCard`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::_buildInputArea` — `_buildInputArea`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::_buildItemContextCard` — `_buildItemContextCard`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::_buildMessageBubble` — `_buildMessageBubble`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::_checkItem` — `_checkItem`
+- `lib/features/messages/presentation/conversation_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/conversation_page.dart::build` — `build`
+- `lib/features/messages/presentation/messages_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/messages/presentation/messages_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/messages_page.dart::InkWell` — `InkWell`
+- `lib/features/messages/presentation/messages_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/messages_page.dart::MessagesPage` — `MessagesPage`
+- `lib/features/messages/presentation/messages_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/messages_page.dart::SizedBox` — `SizedBox`
+- `lib/features/messages/presentation/messages_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/messages_page.dart::_buildHeader` — `_buildHeader`
+- `lib/features/messages/presentation/messages_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/messages_page.dart::_buildMessageList` — `_buildMessageList`
+- `lib/features/messages/presentation/messages_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/messages_page.dart::_buildSearchBar` — `_buildSearchBar`
+- `lib/features/messages/presentation/messages_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/messages_page.dart::_buildStickyInfoCard` — `_buildStickyInfoCard`
+- `lib/features/messages/presentation/messages_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/messages_page.dart::_buildTabs` — `_buildTabs`
+- `lib/features/messages/presentation/messages_page.dart` --[CONTAINS]--> `symbol://lib/features/messages/presentation/messages_page.dart::build` — `build`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[IMPORTS]--> `lib/core/theme/app_motion.dart` — `../../../core/theme/app_motion.dart`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[CONTAINS]--> `symbol://lib/features/onboarding/presentation/onboarding_screen.dart::OnboardingScreen` — `OnboardingScreen`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[CONTAINS]--> `symbol://lib/features/onboarding/presentation/onboarding_screen.dart::Positioned` — `Positioned`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[CONTAINS]--> `symbol://lib/features/onboarding/presentation/onboarding_screen.dart::Scaffold` — `Scaffold`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[CONTAINS]--> `symbol://lib/features/onboarding/presentation/onboarding_screen.dart::Stack` — `Stack`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[CONTAINS]--> `symbol://lib/features/onboarding/presentation/onboarding_screen.dart::_OnboardingScreenState` — `_OnboardingScreenState`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[CONTAINS]--> `symbol://lib/features/onboarding/presentation/onboarding_screen.dart::_triggerMicroInteraction` — `_triggerMicroInteraction`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[CONTAINS]--> `symbol://lib/features/onboarding/presentation/onboarding_screen.dart::build` — `build`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[CONTAINS]--> `symbol://lib/features/onboarding/presentation/onboarding_screen.dart::dispose` — `dispose`
+- `lib/features/onboarding/presentation/onboarding_screen.dart` --[CONTAINS]--> `symbol://lib/features/onboarding/presentation/onboarding_screen.dart::initState` — `initState`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[IMPORTS]--> `lib/core/data/repositories/profile_repository.dart` — `../../../core/data/repositories/profile_repository.dart`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_page.dart::EditProfilePage` — `EditProfilePage`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_page.dart::Scaffold` — `Scaffold`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_page.dart::_EditProfilePageState` — `_EditProfilePageState`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_page.dart::_buildAddMoreChip` — `_buildAddMoreChip`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_page.dart::_buildInterestChip` — `_buildInterestChip`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_page.dart::_loadProfile` — `_loadProfile`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_page.dart::_saveProfile` — `_saveProfile`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_page.dart::build` — `build`
+- `lib/features/profile/presentation/edit_profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_page.dart::initState` — `initState`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[IMPORTS]--> `lib/core/data/models/profile.dart` — `../../../core/data/models/profile.dart`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[IMPORTS]--> `lib/core/data/repositories/profile_repository.dart` — `../../../core/data/repositories/profile_repository.dart`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_screen.dart::EditProfileScreen` — `EditProfileScreen`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_screen.dart::_EditProfileScreenState` — `_EditProfileScreenState`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_screen.dart::_pickAndUploadImage` — `_pickAndUploadImage`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_screen.dart::_saveProfile` — `_saveProfile`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_screen.dart::build` — `build`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_screen.dart::dispose` — `dispose`
+- `lib/features/profile/presentation/edit_profile_screen.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/edit_profile_screen.dart::initState` — `initState`
+- `lib/features/profile/presentation/impact_summary_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/impact_summary_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/impact_summary_page.dart::ImpactSummaryPage` — `ImpactSummaryPage`
+- `lib/features/profile/presentation/impact_summary_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/impact_summary_page.dart::build` — `build`
+- `lib/features/profile/presentation/lending_completed_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/lending_completed_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/lending_completed_page.dart::LendingCompletedPage` — `LendingCompletedPage`
+- `lib/features/profile/presentation/lending_completed_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/lending_completed_page.dart::build` — `build`
+- `lib/features/profile/presentation/mark_as_returned_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/mark_as_returned_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/mark_as_returned_page.dart::MarkAsReturnedPage` — `MarkAsReturnedPage`
+- `lib/features/profile/presentation/mark_as_returned_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/mark_as_returned_page.dart::_MarkAsReturnedPageState` — `_MarkAsReturnedPageState`
+- `lib/features/profile/presentation/mark_as_returned_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/mark_as_returned_page.dart::_buildConditionChip` — `_buildConditionChip`
+- `lib/features/profile/presentation/mark_as_returned_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/mark_as_returned_page.dart::build` — `build`
+- `lib/features/profile/presentation/my_borrowing_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/my_borrowing_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_borrowing_page.dart::MyBorrowingPage` — `MyBorrowingPage`
+- `lib/features/profile/presentation/my_borrowing_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_borrowing_page.dart::Scaffold` — `Scaffold`
+- `lib/features/profile/presentation/my_borrowing_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_borrowing_page.dart::SizedBox` — `SizedBox`
+- `lib/features/profile/presentation/my_borrowing_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_borrowing_page.dart::build` — `build`
+- `lib/features/profile/presentation/my_lending_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/my_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_lending_page.dart::Container` — `Container`
+- `lib/features/profile/presentation/my_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_lending_page.dart::Icon` — `Icon`
+- `lib/features/profile/presentation/my_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_lending_page.dart::MyLendingPage` — `MyLendingPage`
+- `lib/features/profile/presentation/my_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_lending_page.dart::SizedBox` — `SizedBox`
+- `lib/features/profile/presentation/my_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_lending_page.dart::_MyLendingPageState` — `_MyLendingPageState`
+- `lib/features/profile/presentation/my_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_lending_page.dart::_buildFilterChips` — `_buildFilterChips`
+- `lib/features/profile/presentation/my_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_lending_page.dart::build` — `build`
+- `lib/features/profile/presentation/my_listings_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/my_listings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_listings_page.dart::Container` — `Container`
+- `lib/features/profile/presentation/my_listings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_listings_page.dart::MyListingsPage` — `MyListingsPage`
+- `lib/features/profile/presentation/my_listings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_listings_page.dart::Padding` — `Padding`
+- `lib/features/profile/presentation/my_listings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_listings_page.dart::_buildCreateListingButton` — `_buildCreateListingButton`
+- `lib/features/profile/presentation/my_listings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_listings_page.dart::_buildFilterChips` — `_buildFilterChips`
+- `lib/features/profile/presentation/my_listings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_listings_page.dart::_buildTabs` — `_buildTabs`
+- `lib/features/profile/presentation/my_listings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_listings_page.dart::_buildTipBanner` — `_buildTipBanner`
+- `lib/features/profile/presentation/my_listings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_listings_page.dart::_tabItem` — `_tabItem`
+- `lib/features/profile/presentation/my_listings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_listings_page.dart::build` — `build`
+- `lib/features/profile/presentation/my_posts_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/my_posts_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_posts_page.dart::MyPostsPage` — `MyPostsPage`
+- `lib/features/profile/presentation/my_posts_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_posts_page.dart::Scaffold` — `Scaffold`
+- `lib/features/profile/presentation/my_posts_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_posts_page.dart::SizedBox` — `SizedBox`
+- `lib/features/profile/presentation/my_posts_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_posts_page.dart::_MyPostsPageState` — `_MyPostsPageState`
+- `lib/features/profile/presentation/my_posts_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_posts_page.dart::_buildFilterChips` — `_buildFilterChips`
+- `lib/features/profile/presentation/my_posts_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_posts_page.dart::_buildInactivePostCard` — `_buildInactivePostCard`
+- `lib/features/profile/presentation/my_posts_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_posts_page.dart::build` — `build`
+- `lib/features/profile/presentation/my_requests_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/my_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_requests_page.dart::MyRequestsPage` — `MyRequestsPage`
+- `lib/features/profile/presentation/my_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_requests_page.dart::SizedBox` — `SizedBox`
+- `lib/features/profile/presentation/my_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_requests_page.dart::_MyRequestsPageState` — `_MyRequestsPageState`
+- `lib/features/profile/presentation/my_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_requests_page.dart::_buildCompletedRequestCard` — `_buildCompletedRequestCard`
+- `lib/features/profile/presentation/my_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_requests_page.dart::_buildFilterChips` — `_buildFilterChips`
+- `lib/features/profile/presentation/my_requests_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/my_requests_page.dart::build` — `build`
+- `lib/features/profile/presentation/owner_listing_detail_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/owner_listing_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/owner_listing_detail_page.dart::InkWell` — `InkWell`
+- `lib/features/profile/presentation/owner_listing_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/owner_listing_detail_page.dart::OwnerListingDetailPage` — `OwnerListingDetailPage`
+- `lib/features/profile/presentation/owner_listing_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/owner_listing_detail_page.dart::Scaffold` — `Scaffold`
+- `lib/features/profile/presentation/owner_listing_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/owner_listing_detail_page.dart::_buildActionRow` — `_buildActionRow`
+- `lib/features/profile/presentation/owner_listing_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/owner_listing_detail_page.dart::build` — `build`
+- `lib/features/profile/presentation/profile_page.dart` --[IMPORTS]--> `lib/core/data/models/profile.dart` — `../../../core/data/models/profile.dart`
+- `lib/features/profile/presentation/profile_page.dart` --[IMPORTS]--> `lib/core/data/repositories/profile_repository.dart` — `../../../core/data/repositories/profile_repository.dart`
+- `lib/features/profile/presentation/profile_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::GestureDetector` — `GestureDetector`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::ProfilePage` — `ProfilePage`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::Scaffold` — `Scaffold`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::Text` — `Text`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::TextStyle` — `TextStyle`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::_ProfilePageState` — `_ProfilePageState`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::_buildAvatar` — `_buildAvatar`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::_buildBioSection` — `_buildBioSection`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::_buildQuickAccessGrid` — `_buildQuickAccessGrid`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::_buildStatsRow` — `_buildStatsRow`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::_loadProfile` — `_loadProfile`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::build` — `build`
+- `lib/features/profile/presentation/profile_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/profile_page.dart::initState` — `initState`
+- `lib/features/profile/presentation/settings_page.dart` --[IMPORTS]--> `lib/core/data/models/profile.dart` — `../../../core/data/models/profile.dart`
+- `lib/features/profile/presentation/settings_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::Scaffold` — `Scaffold`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::SettingsPage` — `SettingsPage`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::Text` — `Text`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::_SettingsPageState` — `_SettingsPageState`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::_buildSettingsGroup` — `_buildSettingsGroup`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::_contactSupport` — `_contactSupport`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::_deleteAccount` — `_deleteAccount`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::_updatePassword` — `_updatePassword`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::build` — `build`
+- `lib/features/profile/presentation/settings_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/settings_page.dart::showDialog` — `showDialog`
+- `lib/features/profile/presentation/update_lending_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/profile/presentation/update_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/update_lending_page.dart::Padding` — `Padding`
+- `lib/features/profile/presentation/update_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/update_lending_page.dart::Scaffold` — `Scaffold`
+- `lib/features/profile/presentation/update_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/update_lending_page.dart::UpdateLendingPage` — `UpdateLendingPage`
+- `lib/features/profile/presentation/update_lending_page.dart` --[CONTAINS]--> `symbol://lib/features/profile/presentation/update_lending_page.dart::build` — `build`
+- `lib/features/requests/presentation/owner_decline_request_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/requests/presentation/owner_decline_request_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_decline_request_page.dart::OwnerDeclineRequestPage` — `OwnerDeclineRequestPage`
+- `lib/features/requests/presentation/owner_decline_request_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_decline_request_page.dart::Scaffold` — `Scaffold`
+- `lib/features/requests/presentation/owner_decline_request_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_decline_request_page.dart::build` — `build`
+- `lib/features/requests/presentation/owner_exchange_request_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/requests/presentation/owner_exchange_request_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_exchange_request_page.dart::OwnerExchangeRequestPage` — `OwnerExchangeRequestPage`
+- `lib/features/requests/presentation/owner_exchange_request_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_exchange_request_page.dart::Scaffold` — `Scaffold`
+- `lib/features/requests/presentation/owner_exchange_request_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_exchange_request_page.dart::build` — `build`
+- `lib/features/requests/presentation/owner_request_accepted_dialog.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/requests/presentation/owner_request_accepted_dialog.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_accepted_dialog.dart::Dialog` — `Dialog`
+- `lib/features/requests/presentation/owner_request_accepted_dialog.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_accepted_dialog.dart::OwnerRequestAcceptedDialog` — `OwnerRequestAcceptedDialog`
+- `lib/features/requests/presentation/owner_request_accepted_dialog.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_accepted_dialog.dart::Text` — `Text`
+- `lib/features/requests/presentation/owner_request_accepted_dialog.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_accepted_dialog.dart::build` — `build`
+- `lib/features/requests/presentation/owner_request_detail_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/requests/presentation/owner_request_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_detail_page.dart::OwnerRequestDetailPage` — `OwnerRequestDetailPage`
+- `lib/features/requests/presentation/owner_request_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_detail_page.dart::Row` — `Row`
+- `lib/features/requests/presentation/owner_request_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_detail_page.dart::Scaffold` — `Scaffold`
+- `lib/features/requests/presentation/owner_request_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_detail_page.dart::Text` — `Text`
+- `lib/features/requests/presentation/owner_request_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_detail_page.dart::_buildDetailRow` — `_buildDetailRow`
+- `lib/features/requests/presentation/owner_request_detail_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_request_detail_page.dart::build` — `build`
+- `lib/features/requests/presentation/owner_requests_list_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/requests/presentation/owner_requests_list_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_requests_list_page.dart::OwnerRequestsListPage` — `OwnerRequestsListPage`
+- `lib/features/requests/presentation/owner_requests_list_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_requests_list_page.dart::_OwnerRequestsListPageState` — `_OwnerRequestsListPageState`
+- `lib/features/requests/presentation/owner_requests_list_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/owner_requests_list_page.dart::build` — `build`
+- `lib/features/requests/presentation/request_accepted_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/requests/presentation/request_accepted_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_accepted_page.dart::RequestAcceptedPage` — `RequestAcceptedPage`
+- `lib/features/requests/presentation/request_accepted_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_accepted_page.dart::Scaffold` — `Scaffold`
+- `lib/features/requests/presentation/request_accepted_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_accepted_page.dart::build` — `build`
+- `lib/features/requests/presentation/request_borrow_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/requests/presentation/request_borrow_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_borrow_page.dart::RequestBorrowPage` — `RequestBorrowPage`
+- `lib/features/requests/presentation/request_borrow_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_borrow_page.dart::_RequestBorrowPageState` — `_RequestBorrowPageState`
+- `lib/features/requests/presentation/request_borrow_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_borrow_page.dart::_buildChip` — `_buildChip`
+- `lib/features/requests/presentation/request_borrow_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_borrow_page.dart::_buildFormPage` — `_buildFormPage`
+- `lib/features/requests/presentation/request_borrow_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_borrow_page.dart::_buildSuccessPage` — `_buildSuccessPage`
+- `lib/features/requests/presentation/request_borrow_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_borrow_page.dart::_sendRequest` — `_sendRequest`
+- `lib/features/requests/presentation/request_borrow_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_borrow_page.dart::build` — `build`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::Duration` — `Duration`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::RequestExchangePage` — `RequestExchangePage`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::Scaffold` — `Scaffold`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::Stack` — `Stack`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::Text` — `Text`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::_RequestExchangePageState` — `_RequestExchangePageState`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::_buildBulletPoint` — `_buildBulletPoint`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::_buildRequestForm` — `_buildRequestForm`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::_buildSuccessPage` — `_buildSuccessPage`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::_buildTimeChip` — `_buildTimeChip`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::_submitRequest` — `_submitRequest`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::build` — `build`
+- `lib/features/requests/presentation/request_exchange_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_exchange_page.dart::dispose` — `dispose`
+- `lib/features/requests/presentation/request_free_item_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/requests/presentation/request_free_item_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_free_item_page.dart::RequestFreeItemPage` — `RequestFreeItemPage`
+- `lib/features/requests/presentation/request_free_item_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_free_item_page.dart::_RequestFreeItemPageState` — `_RequestFreeItemPageState`
+- `lib/features/requests/presentation/request_free_item_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_free_item_page.dart::_buildChip` — `_buildChip`
+- `lib/features/requests/presentation/request_free_item_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_free_item_page.dart::_buildFormPage` — `_buildFormPage`
+- `lib/features/requests/presentation/request_free_item_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_free_item_page.dart::_buildStep` — `_buildStep`
+- `lib/features/requests/presentation/request_free_item_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_free_item_page.dart::_buildSuccessPage` — `_buildSuccessPage`
+- `lib/features/requests/presentation/request_free_item_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_free_item_page.dart::_sendRequest` — `_sendRequest`
+- `lib/features/requests/presentation/request_free_item_page.dart` --[CONTAINS]--> `symbol://lib/features/requests/presentation/request_free_item_page.dart::build` — `build`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[IMPORTS]--> `lib/core/data/repositories/listing_repository.dart` — `../../../core/data/repositories/listing_repository.dart`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::Container` — `Container`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::CreatePostFlowPage` — `CreatePostFlowPage`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::DashedRectPainter` — `DashedRectPainter`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::Padding` — `Padding`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::Scaffold` — `Scaffold`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::Text` — `Text`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_CreatePostFlowPageState` — `_CreatePostFlowPageState`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildAvailabilityStep` — `_buildAvailabilityStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildCheckTip` — `_buildCheckTip`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildCheckboxOption` — `_buildCheckboxOption`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildConditionChip` — `_buildConditionChip`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildConditionQualityStep` — `_buildConditionQualityStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildDropdownField` — `_buildDropdownField`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildIntroFeatureRow` — `_buildIntroFeatureRow`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildIntroStep` — `_buildIntroStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildItemDetailsStep` — `_buildItemDetailsStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildLabel` — `_buildLabel`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildLookingToExchangeForStep` — `_buildLookingToExchangeForStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildPhotoThumbnail` — `_buildPhotoThumbnail`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildPhotosStep` — `_buildPhotosStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildPickupLocationStep` — `_buildPickupLocationStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildPreferencesStep` — `_buildPreferencesStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildRadioCard` — `_buildRadioCard`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildReviewRow` — `_buildReviewRow`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildReviewStep` — `_buildReviewStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildSteps` — `_buildSteps`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildSuccessStep` — `_buildSuccessStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_buildToggleRow` — `_buildToggleRow`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_nextStep` — `_nextStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_prevStep` — `_prevStep`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_publishPost` — `_publishPost`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::_setupTheme` — `_setupTheme`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::build` — `build`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::dispose` — `dispose`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::if` — `if`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::initState` — `initState`
+- `lib/features/share/presentation/create_post_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/create_post_flow_page.dart::paint` — `paint`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::Column` — `Column`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::RequestConfirmedPage` — `RequestConfirmedPage`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::Scaffold` — `Scaffold`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::_buildActionButtons` — `_buildActionButtons`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::_buildItemSummary` — `_buildItemSummary`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::_buildKinderCommunityBox` — `_buildKinderCommunityBox`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::_buildRequestDetails` — `_buildRequestDetails`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::_buildStatusTimeline` — `_buildStatusTimeline`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::_buildSuccessHeader` — `_buildSuccessHeader`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::_buildTipsBox` — `_buildTipsBox`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::_bulletPoint` — `_bulletPoint`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::_dot` — `_dot`
+- `lib/features/share/presentation/request_confirmed_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_confirmed_page.dart::build` — `build`
+- `lib/features/share/presentation/request_flow_page.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::Padding` — `Padding`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::RequestFlowPage` — `RequestFlowPage`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::Scaffold` — `Scaffold`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::SizedBox` — `SizedBox`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::_buildDateSelector` — `_buildDateSelector`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::_buildDurationChips` — `_buildDurationChips`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::_buildItemSummary` — `_buildItemSummary`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::_buildLocationCard` — `_buildLocationCard`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::_buildMessageInput` — `_buildMessageInput`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::_buildRequestSummary` — `_buildRequestSummary`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::_buildStepHeader` — `_buildStepHeader`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::_buildTimeSelector` — `_buildTimeSelector`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::_summaryRow` — `_summaryRow`
+- `lib/features/share/presentation/request_flow_page.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/request_flow_page.dart::build` — `build`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::Icon` — `Icon`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::Row` — `Row`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::Scaffold` — `Scaffold`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::ShareFlowController` — `ShareFlowController`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::_ShareFlowControllerState` — `_ShareFlowControllerState`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::_buildStepper` — `_buildStepper`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::_nextStep` — `_nextStep`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::_onCategorySelected` — `_onCategorySelected`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::_previousStep` — `_previousStep`
+- `lib/features/share/presentation/share_flow_controller.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/share_flow_controller.dart::build` — `build`
+- `lib/features/share/presentation/steps/category_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/category_step.dart::CategoryStep` — `CategoryStep`
+- `lib/features/share/presentation/steps/category_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/category_step.dart::build` — `build`
+- `lib/features/share/presentation/steps/details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/details_step.dart::DetailsStep` — `DetailsStep`
+- `lib/features/share/presentation/steps/details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/details_step.dart::Expanded` — `Expanded`
+- `lib/features/share/presentation/steps/details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/details_step.dart::SingleChildScrollView` — `SingleChildScrollView`
+- `lib/features/share/presentation/steps/details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/details_step.dart::_addPhotoButton` — `_addPhotoButton`
+- `lib/features/share/presentation/steps/details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/details_step.dart::_buildTextArea` — `_buildTextArea`
+- `lib/features/share/presentation/steps/details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/details_step.dart::_buildTextField` — `_buildTextField`
+- `lib/features/share/presentation/steps/details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/details_step.dart::_buildTextFieldLabel` — `_buildTextFieldLabel`
+- `lib/features/share/presentation/steps/details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/details_step.dart::_pillChip` — `_pillChip`
+- `lib/features/share/presentation/steps/details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/details_step.dart::build` — `build`
+- `lib/features/share/presentation/steps/food_details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/food_details_step.dart::FoodDetailsStep` — `FoodDetailsStep`
+- `lib/features/share/presentation/steps/food_details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/food_details_step.dart::_allergenPill` — `_allergenPill`
+- `lib/features/share/presentation/steps/food_details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/food_details_step.dart::_bulletPoint` — `_bulletPoint`
+- `lib/features/share/presentation/steps/food_details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/food_details_step.dart::_datePicker` — `_datePicker`
+- `lib/features/share/presentation/steps/food_details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/food_details_step.dart::_kindCard` — `_kindCard`
+- `lib/features/share/presentation/steps/food_details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/food_details_step.dart::_timePicker` — `_timePicker`
+- `lib/features/share/presentation/steps/food_details_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/food_details_step.dart::build` — `build`
+- `lib/features/share/presentation/steps/location_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/location_step.dart::LocationStep` — `LocationStep`
+- `lib/features/share/presentation/steps/location_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/location_step.dart::build` — `build`
+- `lib/features/share/presentation/steps/review_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/review_step.dart::ReviewStep` — `ReviewStep`
+- `lib/features/share/presentation/steps/review_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/review_step.dart::_checkboxRow` — `_checkboxRow`
+- `lib/features/share/presentation/steps/review_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/review_step.dart::_detailCol` — `_detailCol`
+- `lib/features/share/presentation/steps/review_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/review_step.dart::_detailRow` — `_detailRow`
+- `lib/features/share/presentation/steps/review_step.dart` --[CONTAINS]--> `symbol://lib/features/share/presentation/steps/review_step.dart::build` — `build`
+- `lib/features/splash/presentation/splash_screen.dart` --[IMPORTS]--> `lib/core/theme/app_colors.dart` — `../../../core/theme/app_colors.dart`
+- `lib/features/splash/presentation/splash_screen.dart` --[IMPORTS]--> `lib/core/theme/app_motion.dart` — `../../../core/theme/app_motion.dart`
+- `lib/features/splash/presentation/splash_screen.dart` --[CONTAINS]--> `symbol://lib/features/splash/presentation/splash_screen.dart::Container` — `Container`
+- `lib/features/splash/presentation/splash_screen.dart` --[CONTAINS]--> `symbol://lib/features/splash/presentation/splash_screen.dart::Scaffold` — `Scaffold`
+- `lib/features/splash/presentation/splash_screen.dart` --[CONTAINS]--> `symbol://lib/features/splash/presentation/splash_screen.dart::SizedBox` — `SizedBox`
+- `lib/features/splash/presentation/splash_screen.dart` --[CONTAINS]--> `symbol://lib/features/splash/presentation/splash_screen.dart::SplashScreen` — `SplashScreen`
+- `lib/features/splash/presentation/splash_screen.dart` --[CONTAINS]--> `symbol://lib/features/splash/presentation/splash_screen.dart::_SplashScreenState` — `_SplashScreenState`
+- `lib/features/splash/presentation/splash_screen.dart` --[CONTAINS]--> `symbol://lib/features/splash/presentation/splash_screen.dart::_playChoreography` — `_playChoreography`
+- `lib/features/splash/presentation/splash_screen.dart` --[CONTAINS]--> `symbol://lib/features/splash/presentation/splash_screen.dart::build` — `build`
+- `lib/features/splash/presentation/splash_screen.dart` --[CONTAINS]--> `symbol://lib/features/splash/presentation/splash_screen.dart::dispose` — `dispose`
+- `lib/features/splash/presentation/splash_screen.dart` --[CONTAINS]--> `symbol://lib/features/splash/presentation/splash_screen.dart::initState` — `initState`
+- `lib/main.dart` --[CONTAINS]--> `symbol://lib/main.dart::NeighborShareApp` — `NeighborShareApp`
+- `lib/main.dart` --[CONTAINS]--> `symbol://lib/main.dart::build` — `build`
+- `lib/main.dart` --[CONTAINS]--> `symbol://lib/main.dart::main` — `main`
+- `test/widget_test.dart` --[CONTAINS]--> `symbol://test/widget_test.dart::main` — `main`
+
+## 6. Warnings
+
+- None detected.
+
+## 7. Informational Findings
+
+- None detected.
+
+## 8. Analysis Boundary
+
+Architecture findings are deterministic static evidence. A finding means CYQ observed the stated condition in the indexed source/graph; absence of a finding does not prove runtime correctness.

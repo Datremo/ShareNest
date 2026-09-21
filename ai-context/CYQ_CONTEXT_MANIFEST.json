@@ -1,0 +1,24 @@
+{
+  "format_version": 1,
+  "cyq_engine_version": "1.7.2",
+  "project": "neighbor_share",
+  "snapshot_id": "c0ed18c403e2b3f7",
+  "generated_at": "2026-09-18T08:06:30.530682+00:00",
+  "portable_context_directory": "C:\\Users\\Shubham\\StudioProjects\\neighbor_share\\ai-context",
+  "artifacts": {
+    "ARCHITECTURE.md": {
+      "type": "ARCHITECTURE",
+      "path": "ARCHITECTURE.md",
+      "snapshot_id": "c0ed18c403e2b3f7",
+      "status": "CURRENT",
+      "sha256": "0efb2d58e287e954f4a57e30892c0bdfb4992c924226de42aa709db2df072ed5"
+    },
+    "CYQ_AI_MEMORY.md": {
+      "type": "AI_MEMORY",
+      "path": "CYQ_AI_MEMORY.md",
+      "snapshot_id": "c0ed18c403e2b3f7",
+      "status": "CURRENT",
+      "sha256": "059760a3ddaf7b450953ccfe967c933fe9366bd99ae8ccc54c29d317aee75a15"
+    }
+  }
+}

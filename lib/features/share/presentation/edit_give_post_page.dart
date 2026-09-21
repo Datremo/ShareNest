@@ -1,0 +1,780 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import '../../../core/presentation/widgets/liquid_glass_container.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
+
+import '../../../core/theme/app_colors.dart';
+import '../../../core/data/models/listing.dart';
+import '../../../core/data/repositories/listing_repository.dart';
+
+class EditGivePostPage extends StatefulWidget {
+  final Listing listing;
+  const EditGivePostPage({super.key, required this.listing});
+
+  @override
+  State<EditGivePostPage> createState() => _EditGivePostPageState();
+}
+
+class _EditGivePostPageState extends State<EditGivePostPage> {
+  final _pageController = PageController();
+  int _currentStep = 0;
+  bool _isPublishing = false;
+  final _formKey1 = GlobalKey<FormState>();
+  final _formKey2 = GlobalKey<FormState>();
+
+  final ListingRepository _listingRepository = ListingRepository();
+
+  // Categories
+  final List<String> _categories = [
+    'Tools',
+    'Electronics',
+    'Home & Kitchen',
+    'Sports',
+    'Books',
+    'Party',
+    'Garden',
+    'Camping',
+    'Others',
+  ];
+
+  // Step 1 State
+  final List<XFile> _pickedImages = [];
+  final List<String> _existingImages = [];
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _brandController = TextEditingController();
+  final _quantityController = TextEditingController(text: '1');
+  String? _selectedCategory;
+  String _selectedCondition = 'Good';
+
+  // Step 2 State
+  DateTime? _availableFrom;
+  bool _availableImmediately = false;
+  final _locationController = TextEditingController();
+  final _tagInputController = TextEditingController();
+  final _includedInputController = TextEditingController();
+  final List<String> _tags = [];
+  final List<String> _includedItems = [];
+  
+  Listing? _updatedListing;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.text = widget.listing.title;
+    _descriptionController.text = widget.listing.description ?? '';
+    _brandController.text = widget.listing.brand ?? '';
+    _quantityController.text = (widget.listing.quantity ?? 1).toString();
+    _selectedCondition = widget.listing.condition ?? 'Good';
+    _locationController.text = widget.listing.locationName ?? '';
+    _existingImages.addAll(widget.listing.photoUrls);
+    
+    // Reverse map category ID to name
+    final matchingCats = _categories.where((c) => c.toLowerCase().replaceAll(' & ', '_').replaceAll(' ', '_') == widget.listing.categoryId);
+    if (matchingCats.isNotEmpty) _selectedCategory = matchingCats.first;
+
+    if (widget.listing.availability != null && widget.listing.availability!.isNotEmpty) {
+      try {
+        final parsedDate = DateTime.parse(widget.listing.availability![0]);
+        _availableFrom = parsedDate;
+      } catch (_) {}
+    }
+
+    if (widget.listing.preferences != null) {
+      final t = widget.listing.preferences!['tags'];
+      if (t != null) _tags.addAll(List<String>.from(t));
+      
+      final inc = widget.listing.preferences!['includedItems'];
+      if (inc != null) _includedItems.addAll(List<String>.from(inc));
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _brandController.dispose();
+    _quantityController.dispose();
+    _locationController.dispose();
+    _tagInputController.dispose();
+    _includedInputController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImages() async {
+    final ImagePicker picker = ImagePicker();
+    final List<XFile> images = await picker.pickMultiImage(limit: 5);
+    if (images.isNotEmpty) {
+      setState(() {
+        _pickedImages.addAll(images);
+      });
+    }
+  }
+
+  void _removePickedImage(int index) {
+    setState(() {
+      _pickedImages.removeAt(index);
+    });
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _availableFrom ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.primaryDark,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _availableFrom = picked;
+        _availableImmediately = false;
+      });
+    }
+  }
+
+  void _addTag() {
+    final tag = _tagInputController.text.trim();
+    if (tag.isNotEmpty && !_tags.contains(tag)) {
+      setState(() {
+        _tags.add(tag);
+        _tagInputController.clear();
+      });
+    }
+  }
+
+  void _addIncludedItem() {
+    final item = _includedInputController.text.trim();
+    if (item.isNotEmpty && !_includedItems.contains(item)) {
+      setState(() {
+        _includedItems.add(item);
+        _includedInputController.clear();
+      });
+    }
+  }
+
+  Future<void> _publishPost() async {
+    if (_titleController.text.isEmpty ||
+        _descriptionController.text.isEmpty ||
+        _selectedCategory == null ||
+        _locationController.text.isEmpty ||
+        (_availableFrom == null && !_availableImmediately)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all required fields.')),
+      );
+      return;
+    }
+
+    setState(() => _isPublishing = true);
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('You must be logged in to post.');
+
+      List<String> photoUrls = List.from(_existingImages);
+      if (_pickedImages.isNotEmpty) {
+        for (final image in _pickedImages) {
+          final bytes = await image.readAsBytes();
+          final ext = image.name.split('.').last;
+          final url = await _listingRepository.uploadListingImage(bytes, ext);
+          photoUrls.add(url);
+        }
+      }
+
+      final listing = Listing(
+        id: widget.listing.id,
+        ownerId: user.id,
+        mode: 'GIVE',
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        categoryId: _selectedCategory!.toLowerCase().replaceAll(' & ', '_').replaceAll(' ', '_'),
+        photoUrls: photoUrls,
+        status: 'ACTIVE',
+        condition: _selectedCondition,
+        brand: _brandController.text.trim(),
+        quantity: int.tryParse(_quantityController.text) ?? 1,
+        locationName: _locationController.text.trim(),
+        availability: [
+          _availableImmediately ? DateTime.now().toIso8601String() : _availableFrom!.toIso8601String(),
+        ],
+        preferences: {
+          'tags': _tags,
+          'includedItems': _includedItems,
+        },
+      );
+
+      await _listingRepository.updateListing(listing);
+      _updatedListing = listing;
+      
+      if (mounted) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to publish: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPublishing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      
+      appBar: AppBar(
+        
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: AppColors.primaryDark),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text(
+          'Edit Post',
+          style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4),
+          child: LinearProgressIndicator(
+            value: (_currentStep + 1) / 3,
+            backgroundColor: AppColors.grey200,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+        ),
+      ),
+      body: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        onPageChanged: (idx) => setState(() => _currentStep = idx),
+        children: [
+          _buildStep1(),
+          _buildStep2(),
+          _buildSuccessStep(),
+        ],
+      ),
+      bottomNavigationBar: _currentStep < 2 ? _buildBottomBar() : const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildStep1() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Form(
+        key: _formKey1,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Item Details',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Add clear photos and describe what you are giving away.',
+              style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 32),
+            
+            // Photos
+            _buildLabel('Photos *'),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ..._existingImages.asMap().entries.map((entry) => _buildExistingPhotoThumbnail(entry.value, entry.key)),
+                  ..._pickedImages.asMap().entries.map((entry) => _buildPickedPhotoThumbnail(entry.value, entry.key)),
+                  GestureDetector(
+                    onTap: _pickImages,
+                    child: Container(
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 2),
+                        borderRadius: BorderRadius.circular(16),
+                        color: AppColors.primary.withValues(alpha: 0.05),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.add_a_photo_rounded, color: AppColors.primary, size: 32),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Title
+            _buildLabel('Title *'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _titleController,
+              validator: (v) => v!.isEmpty ? 'Required' : null,
+              decoration: _inputDecoration('What is the item?'),
+            ),
+            const SizedBox(height: 24),
+            
+            // Category
+            _buildLabel('Category *'),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedCategory,
+              decoration: _inputDecoration('Select category'),
+              items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              onChanged: (v) => setState(() => _selectedCategory = v),
+              validator: (v) => v == null ? 'Required' : null,
+            ),
+            const SizedBox(height: 24),
+            
+            // Quantity & Brand
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel('Quantity *'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _quantityController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        validator: (v) => v!.isEmpty ? 'Required' : null,
+                        decoration: _inputDecoration('Qty'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel('Brand (Optional)'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _brandController,
+                        decoration: _inputDecoration('e.g. Bosch, Sony'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            
+            // Condition
+            _buildLabel('Condition *'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildConditionChip('Like New'),
+                const SizedBox(width: 12),
+                _buildConditionChip('Good'),
+                const SizedBox(width: 12),
+                _buildConditionChip('Fair'),
+              ],
+            ),
+            const SizedBox(height: 24),
+            
+            // Description
+            _buildLabel('Description *'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _descriptionController,
+              maxLines: 4,
+              validator: (v) => v!.isEmpty ? 'Required' : null,
+              decoration: _inputDecoration('Provide helpful details about the item...'),
+            ),
+            const SizedBox(height: 80),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep2() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Form(
+        key: _formKey2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Availability & Logistics',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Set when and where neighbors can pick up the item.',
+              style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 32),
+            
+            // Dates
+            _buildLabel('Available From *'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: _availableImmediately ? null : _selectDate,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.grey200),
+                        borderRadius: BorderRadius.circular(16),
+                        color: _availableImmediately ? AppColors.grey50 : Colors.white,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_month_rounded, color: _availableImmediately ? Colors.grey : AppColors.primary),
+                          const SizedBox(width: 12),
+                          Text(
+                            _availableFrom != null
+                                ? DateFormat('MMM d, yyyy').format(_availableFrom!)
+                                : 'Select date',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: _availableFrom != null && !_availableImmediately ? AppColors.primaryDark : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Checkbox(
+                  value: _availableImmediately,
+                  activeColor: AppColors.primary,
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _availableImmediately = val;
+                        if (val) _availableFrom = null;
+                      });
+                    }
+                  },
+                ),
+                const Text('Available Immediately', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Location
+            _buildLabel('Pickup Location *'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _locationController,
+              validator: (v) => v!.isEmpty ? 'Required' : null,
+              decoration: _inputDecoration('e.g. My house, Coffee shop on 5th Ave', prefixIcon: Icons.location_on_outlined),
+            ),
+            const SizedBox(height: 24),
+
+            // Tags
+            _buildLabel('Tags (Optional)'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _tagInputController,
+                    decoration: _inputDecoration('Add a tag (e.g. Heavy, Fragile)'),
+                    onFieldSubmitted: (_) => _addTag(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _addTag,
+                  icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 32),
+                ),
+              ],
+            ),
+            if (_tags.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: Wrap(
+                  spacing: 8,
+                  children: _tags.map((tag) => Chip(
+                    label: Text(tag),
+                    onDeleted: () => setState(() => _tags.remove(tag)),
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    side: BorderSide.none,
+                  )).toList(),
+                ),
+              ),
+            const SizedBox(height: 24),
+
+            // Included Items
+            _buildLabel('Included in the box (Optional)'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _includedInputController,
+                    decoration: _inputDecoration('e.g. Charger, Manual'),
+                    onFieldSubmitted: (_) => _addIncludedItem(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _addIncludedItem,
+                  icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 32),
+                ),
+              ],
+            ),
+            if (_includedItems.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: Wrap(
+                  spacing: 8,
+                  children: _includedItems.map((item) => Chip(
+                    label: Text(item),
+                    onDeleted: () => setState(() => _includedItems.remove(item)),
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                    backgroundColor: AppColors.primaryDark.withValues(alpha: 0.05),
+                    side: BorderSide.none,
+                  )).toList(),
+                ),
+              ),
+            const SizedBox(height: 80),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuccessStep() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppColors.success.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 80),
+        ),
+        const SizedBox(height: 32),
+        const Text(
+          'Changes Saved!',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Your listing has been successfully updated.',
+          style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 48),
+        ElevatedButton(
+          onPressed: () => context.pop(_updatedListing),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryDark,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          child: const Text('Back to Post', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomBar() {
+    return SafeArea(
+      child: LiquidGlassContainer(sigma: 15, opacity: 0.7, padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            if (_currentStep > 0)
+              TextButton(
+                onPressed: () {
+                  _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                },
+                child: const Text('Back', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
+              ),
+            const Spacer(),
+            ElevatedButton(
+              onPressed: _isPublishing
+                  ? null
+                  : () {
+                      if (_currentStep == 0) {
+                        if (_formKey1.currentState!.validate()) {
+                          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                        }
+                      } else if (_currentStep == 1) {
+                        if (_formKey2.currentState!.validate()) {
+                          if (_availableFrom == null && !_availableImmediately) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an availability date.')));
+                            return;
+                          }
+                          _publishPost();
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: _isPublishing
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text(
+                      _currentStep == 0 ? 'Next' : 'Save Changes',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Helpers ---
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint, {IconData? prefixIcon}) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.grey400) : null,
+      filled: true,
+      fillColor: AppColors.grey50,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.grey200),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.grey200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.primary),
+      ),
+    );
+  }
+
+  Widget _buildConditionChip(String label) {
+    final isSelected = _selectedCondition == label;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedCondition = label),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : Colors.white,
+            border: Border.all(color: isSelected ? AppColors.primary : AppColors.grey300),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : AppColors.primaryDark,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExistingPhotoThumbnail(String url, int index) {
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(right: 12),
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.grey[200],
+            image: url.isNotEmpty ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover) : null,
+          ),
+          child: url.isEmpty ? const Icon(Icons.broken_image, color: Colors.grey) : null,
+        ),
+        Positioned(
+          top: 4,
+          right: 16,
+          child: GestureDetector(
+            onTap: () => setState(() => _existingImages.removeAt(index)),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 16),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPickedPhotoThumbnail(XFile file, int index) {
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(right: 12),
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            image: DecorationImage(
+              image: kIsWeb ? NetworkImage(file.path) as ImageProvider : FileImage(File(file.path)),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Positioned(
+          top: -4,
+          right: 4,
+          child: IconButton(
+            icon: const Icon(Icons.remove_circle, color: Colors.red),
+            onPressed: () => _removePickedImage(index),
+          ),
+        ),
+      ],
+    );
+  }
+}

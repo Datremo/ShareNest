@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "222832681669",
+    "project_id": "neighborshare-da7bb",
+    "storage_bucket": "neighborshare-da7bb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:222832681669:android:d93802c1421d4eeb29c6ac",
+        "android_client_info": {
+          "package_name": "com.example.demo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0v1gpbfS0je3b9m-1eCvPhq9rOxLlIKw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
