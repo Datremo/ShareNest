@@ -564,31 +564,47 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   const SizedBox(width: 16),
                 ],
                 Expanded(
-                  child: _isOwner
-                      ? GlassButton(
-                          label: 'View All Requests',
-                          icon: Icons.inbox_rounded,
-                          onPressed: () {
-                            context.push('/owner_requests_list', extra: _currentListing);
-                          },
+                  child: _currentListing.status == 'COMPLETED'
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: Colors.grey),
+                              SizedBox(width: 8),
+                              Text('Completed', style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                         )
-                      : GlassButton(
-                          label: _currentListing.mode == 'LEND'
-                              ? 'Request to Borrow'
-                              : _currentListing.mode == 'GIVE'
-                                  ? 'Request Item'
-                                  : 'Offer Exchange',
-                          icon: Icons.handshake_rounded,
-                          onPressed: () {
-                            if (_currentListing.mode == 'LEND') {
-                              context.push('/request_borrow', extra: _currentListing);
-                            } else if (_currentListing.mode == 'GIVE') {
-                              context.push('/request_free_item', extra: _currentListing);
-                            } else {
-                              context.push('/request_exchange', extra: _currentListing);
-                            }
-                          },
-                        ),
+                      : _isOwner
+                          ? GlassButton(
+                              label: 'View All Requests',
+                              icon: Icons.inbox_rounded,
+                              onPressed: () {
+                                context.push('/owner_requests_list', extra: _currentListing);
+                              },
+                            )
+                          : GlassButton(
+                              label: _currentListing.mode == 'LEND'
+                                  ? 'Request to Borrow'
+                                  : _currentListing.mode == 'GIVE'
+                                      ? 'Request Item'
+                                      : 'Offer Exchange',
+                              icon: Icons.handshake_rounded,
+                              onPressed: () {
+                                if (_currentListing.mode == 'LEND') {
+                                  context.push('/request_borrow', extra: _currentListing);
+                                } else if (_currentListing.mode == 'GIVE') {
+                                  context.push('/request_free_item', extra: _currentListing);
+                                } else {
+                                  context.push('/request_exchange', extra: _currentListing);
+                                }
+                              },
+                            ),
                 ),
               ],
             ),

@@ -31,14 +31,13 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
 
   // Categories
   final List<String> _categories = [
-    'Tools',
+    'DIY & Power Tools',
+    'Camping & Outdoors',
+    'Kitchen & Party',
+    'Books & Games',
+    'Sports & Fitness',
     'Electronics',
-    'Home & Kitchen',
-    'Sports',
-    'Books',
-    'Party',
-    'Garden',
-    'Camping',
+    'Clothing',
     'Others',
   ];
 
@@ -259,14 +258,12 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
               children: [
                 _buildStep1(),
                 _buildStep2(),
-                _buildReviewStep(),
-                _buildSuccessStep(),
               ],
             ),
           ),
         ],
       ),
-      bottomNavigationBar: _currentStep < 3 ? _buildBottomBar() : const SizedBox.shrink(),
+      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -670,11 +667,6 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
   }
 
   Widget _buildBottomBar() {
-    bool canProceed = false;
-    if (_currentStep == 0) canProceed = _formKey1.currentState?.validate() ?? false;
-    if (_currentStep == 1) canProceed = _formKey2.currentState?.validate() ?? false;
-    if (_currentStep == 2) canProceed = true; // Review step
-
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -692,23 +684,49 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
             if (_currentStep > 0) const SizedBox(width: 16),
             Expanded(
               flex: 2,
-              child: _currentStep == 2
-                  ? AnimatedFlyingButton(
-                      text: 'Publish',
-                      isPrimary: true,
-                      onPressed: () {
-                        if (canProceed) _publishPost();
-                      },
-                    )
-                  : GlassButton(
-                      label: 'Next',
-                      isLoading: _isPublishing,
-                      onPressed: canProceed
-                          ? () {
-                              _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                            }
-                          : null,
-                    ),
+              child: GlassButton(
+                label: _currentStep == 1 ? 'Review' : 'Next',
+                isLoading: _isPublishing,
+                onPressed: () {
+                  if (_currentStep == 0) {
+                    if ((_formKey1.currentState?.validate() ?? false)) {
+                      _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                    }
+                  } else if (_currentStep == 1) {
+                    if ((_formKey2.currentState?.validate() ?? false)) {
+                      if (_availableFrom == null && !_availableImmediately) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an availability date.')));
+                        return;
+                      }
+                      final listing = Listing(
+                        id: '',
+                        ownerId: '',
+                        mode: 'EXCHANGE',
+                        title: _titleController.text.trim(),
+                        description: _descriptionController.text.trim(),
+                        categoryId: _selectedCategory!.toLowerCase().replaceAll(' & ', '_').replaceAll(' ', '_'),
+                        photoUrls: [],
+                        status: 'ACTIVE',
+                        condition: _selectedCondition,
+                        brand: _brandController.text.trim(),
+                        quantity: int.tryParse(_quantityController.text) ?? 1,
+                        locationName: _locationController.text.trim(),
+                        availability: [
+                          _availableImmediately ? DateTime.now().toIso8601String() : _availableFrom!.toIso8601String(),
+                        ],
+                        preferences: {
+                          'tags': _tags,
+                          'includedItems': _includedItems,
+                        },
+                      );
+                      context.push('/review_post', extra: {
+                        'listing': listing,
+                        'images': _pickedImages,
+                      });
+                    }
+                  }
+                },
+              ),
             ),
           ],
         ),

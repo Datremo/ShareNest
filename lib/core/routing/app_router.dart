@@ -53,6 +53,11 @@ import '../../features/requests/presentation/owner_exchange_request_page.dart';
 import '../../features/item/presentation/exchange_completed_page.dart';
 import '../../features/requests/presentation/requester_request_detail_page.dart';
 import '../../features/requests/presentation/request_sent_page.dart';
+import '../../features/explore/presentation/search_results_page.dart';
+import '../../features/share/presentation/review_post_page.dart';
+import '../../features/share/presentation/post_published_page.dart';
+import 'package:image_picker/image_picker.dart';
+
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorHomeKey =
     GlobalKey<NavigatorState>(debugLabel: 'shellHome');
@@ -102,6 +107,35 @@ final GoRouter appRouter = GoRouter(
       path: '/request-sent',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const RequestSentPage(),
+    ),
+    GoRoute(
+      path: '/search_results',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return SearchResultsPage(
+          query: extra?['query'] ?? '',
+          category: extra?['category'],
+        );
+      },
+    ),
+    GoRoute(
+      path: '/review_post',
+      parentNavigatorKey: _rootNavigatorKey,
+      pageBuilder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        final listing = extra['listing'] as Listing;
+        final images = extra['images'] as List<XFile>;
+        return SpringBottomUpTransitionPage(
+          key: state.pageKey,
+          child: ReviewPostPage(listing: listing, images: images),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/post_published',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const PostPublishedPage(),
     ),
     GoRoute(
       path: '/urgent_request',

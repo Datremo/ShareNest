@@ -30,8 +30,9 @@ class _ExchangeHubPageState extends State<ExchangeHubPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -42,7 +43,39 @@ class _ExchangeHubPageState extends State<ExchangeHubPage> {
         title: const Text('Exchange Items', style: TextStyle(color: AppColors.primaryDark, fontSize: 18, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      body: RefreshIndicator(
+      
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        children: [
+          // Abstract Background Orbs
+          Positioned(
+            top: -100,
+            right: -50,
+            child: Container(
+              width: 350,
+              height: 350,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.exchange.withOpacity(0.15),
+                boxShadow: [BoxShadow(blurRadius: 150, color: AppColors.exchange.withOpacity(0.2))],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -50,
+            left: -100,
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withOpacity(0.1),
+                boxShadow: [BoxShadow(blurRadius: 120, color: AppColors.primary.withOpacity(0.2))],
+              ),
+            ),
+          ),
+          RefreshIndicator(
+
         onRefresh: () async {
           setState(() {});
         },
@@ -51,7 +84,7 @@ class _ExchangeHubPageState extends State<ExchangeHubPage> {
           child: Column(
           children: [
             Container(
-              color: Colors.white,
+              color: Colors.transparent,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,6 +182,8 @@ class _ExchangeHubPageState extends State<ExchangeHubPage> {
           ],
         ),
       ),
+      ),
+        ],
       ),
     );
   }

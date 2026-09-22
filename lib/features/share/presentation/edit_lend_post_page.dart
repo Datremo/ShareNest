@@ -33,14 +33,13 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
 
   // Categories
   final List<String> _categories = [
-    'Tools',
+    'DIY & Power Tools',
+    'Camping & Outdoors',
+    'Kitchen & Party',
+    'Books & Games',
+    'Sports & Fitness',
     'Electronics',
-    'Home & Kitchen',
-    'Sports',
-    'Books',
-    'Party',
-    'Garden',
-    'Camping',
+    'Clothing',
     'Others',
   ];
 

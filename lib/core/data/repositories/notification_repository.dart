@@ -12,7 +12,7 @@ class NotificationRepository {
       final response = await _client
           .from('notifications')
           .select()
-          .eq('user_id', currentUserId)
+          .eq('profile_id', currentUserId)
           .order('created_at', ascending: false)
           .limit(50);
 
@@ -41,7 +41,7 @@ class NotificationRepository {
       await _client
           .from('notifications')
           .update({'is_read': true})
-          .eq('user_id', currentUserId)
+          .eq('profile_id', currentUserId)
           .eq('is_read', false);
     } catch (e) {
       print('Error marking all as read: $e');
@@ -55,7 +55,7 @@ class NotificationRepository {
     return _client
         .from('notifications')
         .stream(primaryKey: ['id'])
-        .eq('user_id', currentUserId)
+        .eq('profile_id', currentUserId)
         .order('created_at', ascending: false)
         .handleError((error) {
           print('Supabase Realtime Stream Error: $error');
@@ -73,7 +73,7 @@ class NotificationRepository {
     final actorId = _client.auth.currentUser?.id;
     try {
       await _client.from('notifications').insert({
-        'user_id': userId,
+        'profile_id': userId,
         'actor_id': actorId,
         'title': title,
         'message': body,

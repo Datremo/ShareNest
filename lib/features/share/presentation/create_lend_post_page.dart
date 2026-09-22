@@ -32,14 +32,13 @@ class _CreateLendPostPageState extends State<CreateLendPostPage> {
 
   // Categories
   final List<String> _categories = [
-    'Tools',
+    'DIY & Power Tools',
+    'Camping & Outdoors',
+    'Kitchen & Party',
+    'Books & Games',
+    'Sports & Fitness',
     'Electronics',
-    'Home & Kitchen',
-    'Sports',
-    'Books',
-    'Party',
-    'Garden',
-    'Camping',
+    'Clothing',
     'Others',
   ];
 
@@ -247,11 +246,9 @@ class _CreateLendPostPageState extends State<CreateLendPostPage> {
         children: [
           _buildStep1(),
           _buildStep2(),
-          _buildReviewStep(),
-          _buildSuccessStep(),
         ],
       ),
-      bottomNavigationBar: _currentStep < 3 ? _buildBottomBar() : const SizedBox.shrink(),
+      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -738,39 +735,57 @@ class _CreateLendPostPageState extends State<CreateLendPostPage> {
                 child: const Text('Back', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
               ),
             const Spacer(),
-            _currentStep == 2
-                ? AnimatedFlyingButton(
-                    text: 'Publish',
-                    isPrimary: true,
-                    onPressed: () {
-                      _publishPost();
-                    },
-                  )
-                : ElevatedButton(
-                    onPressed: () {
-                      if (_currentStep == 0) {
-                        if ((_formKey1.currentState?.validate() ?? false)) {
-                          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                        }
-                      } else if (_currentStep == 1) {
-                        if ((_formKey2.currentState?.validate() ?? false)) {
-                          if (_availableFrom == null || _availableUntil == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select availability dates.')));
-                            return;
-                          }
-                          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      elevation: 8,
-                      shadowColor: AppColors.primary.withValues(alpha: 0.4),
-                    ),
-                    child: const Text('Next', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                  ),
+            ElevatedButton(
+              onPressed: () {
+                if (_currentStep == 0) {
+                  if ((_formKey1.currentState?.validate() ?? false)) {
+                    _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                  }
+                } else if (_currentStep == 1) {
+                  if ((_formKey2.currentState?.validate() ?? false)) {
+                    if (_availableFrom == null || _availableUntil == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select availability dates.')));
+                      return;
+                    }
+                    final listing = Listing(
+                      id: '',
+                      ownerId: '',
+                      mode: 'LEND',
+                      title: _titleController.text.trim(),
+                      description: _descriptionController.text.trim(),
+                      categoryId: _selectedCategory!.toLowerCase().replaceAll(' & ', '_').replaceAll(' ', '_'),
+                      photoUrls: [],
+                      status: 'ACTIVE',
+                      condition: _selectedCondition,
+                      brand: _brandController.text.trim(),
+                      quantity: int.tryParse(_quantityController.text) ?? 1,
+                      locationName: _locationController.text.trim(),
+                      availability: [
+                        _availableFrom!.toIso8601String(),
+                        _availableUntil!.toIso8601String(),
+                      ],
+                      preferences: {
+                        'tags': _tags,
+                        'includedItems': _includedItems,
+                        'returnPeriod': '${_returnPeriodNumberController.text.trim()} $_returnPeriodUnit',
+                      },
+                    );
+                    context.push('/review_post', extra: {
+                      'listing': listing,
+                      'images': _pickedImages,
+                    });
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                elevation: 8,
+                shadowColor: AppColors.primary.withValues(alpha: 0.4),
+              ),
+              child: Text(_currentStep == 1 ? 'Review' : 'Next', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
           ],
         ),
       ),

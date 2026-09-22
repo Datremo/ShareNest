@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/data/repositories/listing_repository.dart';
 import '../../../core/data/models/listing.dart';
-import 'filters_bottom_sheet.dart';
+import '../../../core/presentation/widgets/liquid_glass_widgets.dart';
 
 class FreeItemsPage extends StatefulWidget {
   const FreeItemsPage({super.key});
@@ -15,332 +15,321 @@ class FreeItemsPage extends StatefulWidget {
 
 class _FreeItemsPageState extends State<FreeItemsPage> {
   final _listingRepo = ListingRepository();
-  String _selectedCategory = 'All';
-  bool _isListView = true;
+  String? _selectedCategory;
 
-  void _showFilters() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const FiltersBottomSheet(),
-    );
-  }
+  final List<Map<String, dynamic>> _categories = [
+    {'name': 'All', 'icon': Icons.grid_view_rounded, 'id': null, 'color': AppColors.primaryDark},
+    {'name': 'DIY & Tools', 'icon': Icons.handyman_rounded, 'id': 'diy_&_tools', 'color': AppColors.primary},
+    {'name': 'Outdoors', 'icon': Icons.park_rounded, 'id': 'camping_&_outdoors', 'color': Colors.green},
+    {'name': 'Kitchen', 'icon': Icons.cake_rounded, 'id': 'kitchen_&_party', 'color': Colors.orange},
+    {'name': 'Books', 'icon': Icons.menu_book_rounded, 'id': 'books_&_games', 'color': Colors.purple},
+    {'name': 'Sports', 'icon': Icons.directions_bike_rounded, 'id': 'sports_&_fitness', 'color': Colors.blue},
+    {'name': 'Cleaning', 'icon': Icons.cleaning_services_rounded, 'id': 'cleaning_&_home', 'color': Colors.teal},
+    {'name': 'Electronics', 'icon': Icons.phone_iphone_rounded, 'id': 'electronics', 'color': Colors.indigo},
+    {'name': 'Other', 'icon': Icons.more_horiz_rounded, 'id': 'other', 'color': Colors.grey},
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back, color: AppColors.primaryDark),
-          onPressed: () => context.pop(),
+      backgroundColor: const Color(0xFFF2F4F7),
+      body: CustomScrollView(
+        slivers: [
+          _buildAppBar(),
+          _buildSearchBar(),
+          _buildCategories(),
+          _buildItemsGrid(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      expandedHeight: 140.0,
+      floating: false,
+      pinned: true,
+      backgroundColor: const Color(0xFFF2F4F7),
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      leading: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: GestureDetector(
+          onTap: () => context.pop(),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(CupertinoIcons.back, color: AppColors.primaryDark),
+          ),
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          setState(() {});
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+        title: const Text(
+          'Free Items Hub',
+          style: TextStyle(
+            color: AppColors.primaryDark,
+            fontWeight: FontWeight.w900,
+            fontSize: 24,
+            letterSpacing: -0.5,
+          ),
+        ),
+        background: Stack(
           children: [
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: 24),
-                  _buildSearchBar(),
-                  const SizedBox(height: 24),
-                  _buildCategories(),
-                  const SizedBox(height: 24),
-                  _buildViewToggles(),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: FutureBuilder<List<Listing>>(
-                future: _listingRepo.getListingsByMode('GIVE'),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.only(top: 40),
-                      child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                    );
-                  }
-                  final listings = snapshot.data ?? [];
-                  if (listings.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.only(top: 40),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(Icons.card_giftcard, size: 48, color: AppColors.grey400),
-                            SizedBox(height: 12),
-                            Text('No free items available yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-                            SizedBox(height: 4),
-                            Text('Be the first to give something away!', style: TextStyle(color: AppColors.give, fontWeight: FontWeight.w600, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                  return Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('${listings.length} free items nearby', style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w600)),
-                          const Row(
-                            children: [
-                              Text('Sort', style: TextStyle(color: AppColors.primaryDark, fontSize: 13, fontWeight: FontWeight.w600)),
-                              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.primaryDark),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      ...listings.map((item) => _buildItemCard(
-                        listing: item,
-                      )),
-                    ],
-                  );
-                },
+            Positioned(
+              top: -50,
+              right: -50,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                ),
               ),
             ),
           ],
         ),
       ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Row(
-      children: [
-        const Icon(Icons.auto_awesome_rounded, color: Colors.amber, size: 32),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Free Items', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
-              const SizedBox(height: 4),
-              Text('Find things people are giving away.\nA little for you. A lot for the planet.', 
-                style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.4)),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 2))],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search free items...',
-                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-                prefixIcon: const Icon(CupertinoIcons.search, color: AppColors.primary, size: 20),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 16),
-              ),
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: GestureDetector(
+          onTap: () {
+            // Navigate to search results with mode='GIVE'
+            context.push('/search_results?mode=LEND');
+          },
+          child: GlassCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                const Icon(CupertinoIcons.search, color: AppColors.primaryDark, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'Search free items...',
+                  style: TextStyle(
+                    color: AppColors.primaryDark.withValues(alpha: 0.5),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.tune_rounded, color: AppColors.primary, size: 16),
+                ),
+              ],
             ),
           ),
-          Container(width: 1, height: 30, color: Colors.grey[200]),
-          IconButton(
-            icon: const Icon(Icons.tune_rounded, color: AppColors.primaryDark),
-            onPressed: _showFilters,
-          ),
-          const SizedBox(width: 8),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildCategories() {
-    final categories = [
-      {'name': 'All', 'icon': Icons.grid_view_rounded, 'color': AppColors.primary},
-      {'name': 'Food', 'icon': Icons.restaurant_rounded, 'color': Colors.orange},
-      {'name': 'Books', 'icon': Icons.menu_book_rounded, 'color': Colors.blue},
-      {'name': 'Clothing', 'icon': Icons.checkroom_rounded, 'color': Colors.purple},
-      {'name': 'Home', 'icon': Icons.home_rounded, 'color': Colors.green},
-      {'name': 'Electronics', 'icon': Icons.phone_iphone_rounded, 'color': Colors.teal},
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      clipBehavior: Clip.none,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: categories.map((cat) {
-          bool isSelected = _selectedCategory == cat['name'];
-          return GestureDetector(
-            onTap: () => setState(() => _selectedCategory = cat['name'] as String),
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isSelected ? AppColors.primary : Colors.grey[200]!),
-                boxShadow: isSelected ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(cat['icon'] as IconData, color: isSelected ? Colors.white : (cat['color'] as Color), size: 24),
-                  const SizedBox(height: 6),
-                  Text(cat['name'] as String, style: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.primaryDark,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  )),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildViewToggles() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _isListView = false),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: !_isListView ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: !_isListView ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))] : null,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.map_outlined, color: !_isListView ? Colors.white : Colors.grey[600], size: 18),
-                    const SizedBox(width: 8),
-                    Text('Map View', style: TextStyle(color: !_isListView ? Colors.white : Colors.grey[600], fontWeight: FontWeight.bold, fontSize: 13)),
-                  ],
-                ),
-              ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Text(
+              'Categories',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
             ),
           ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _isListView = true),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: _isListView ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: _isListView ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))] : null,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.format_list_bulleted_rounded, color: _isListView ? Colors.white : Colors.grey[600], size: 18),
-                    const SizedBox(width: 8),
-                    Text('List View', style: TextStyle(color: _isListView ? Colors.white : Colors.grey[600], fontWeight: FontWeight.bold, fontSize: 13)),
-                  ],
-                ),
-              ),
+          SizedBox(
+            height: 100,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              scrollDirection: Axis.horizontal,
+              itemCount: _categories.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 16),
+              itemBuilder: (context, index) {
+                final cat = _categories[index];
+                final isSelected = _selectedCategory == cat['id'];
+                
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedCategory = cat['id'] as String?;
+                    });
+                  },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: isSelected ? cat['color'] as Color : Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: (cat['color'] as Color).withValues(alpha: isSelected ? 0.3 : 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: isSelected ? Colors.transparent : Colors.grey.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Icon(
+                          cat['icon'] as IconData,
+                          color: isSelected ? Colors.white : (cat['color'] as Color),
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        cat['name'] as String,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? AppColors.primaryDark : Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  Widget _buildItemCard({required Listing listing}) {
-    return GestureDetector(
-      onTap: () => context.push('/item', extra: listing),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[200]!),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 2))],
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomLeft: Radius.circular(20)),
-              child: listing.photoUrls.isNotEmpty
-                  ? Image.network(listing.photoUrls.first, width: 100, height: 110, fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(width: 100, height: 110, color: Colors.grey[200], child: const Icon(Icons.image_outlined, color: AppColors.grey400)),
-                    )
-                  : Container(width: 100, height: 110, color: Colors.grey[200], child: const Icon(Icons.card_giftcard, color: AppColors.give, size: 32)),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(child: Text(listing.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryDark), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                        const Icon(CupertinoIcons.heart, color: AppColors.primaryDark, size: 18),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(listing.condition ?? 'Good condition', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined, color: AppColors.primary, size: 12),
-                        const SizedBox(width: 3),
-                        Expanded(child: Text(listing.locationName ?? 'Nearby', style: TextStyle(color: Colors.grey[700], fontSize: 11, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(6)),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 10),
-                          SizedBox(width: 3),
-                          Text('Free to keep', style: TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
-                        ],
+  Widget _buildItemsGrid() {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      sliver: StreamBuilder<List<Listing>>(
+        stream: _listingRepo.streamListingsByMode('GIVE'),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SliverToBoxAdapter(
+              child: Center(child: Padding(
+                padding: EdgeInsets.all(40.0),
+                child: CircularProgressIndicator(),
+              )),
+            );
+          }
+          
+          var listings = snapshot.data ?? [];
+          if (_selectedCategory != null) {
+            listings = listings.where((l) => l.categoryId == _selectedCategory).toList();
+          }
+
+          if (listings.isEmpty) {
+            return SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40.0),
+                  child: Column(
+                    children: [
+                      Icon(CupertinoIcons.archivebox, size: 64, color: Colors.grey[300]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No items found.',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 16, fontWeight: FontWeight.w500),
                       ),
-                    )
-                  ],
+                    ],
+                  ),
                 ),
               ),
+            );
+          }
+
+          return SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
             ),
-          ],
-        ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final item = listings[index];
+                return GestureDetector(
+                  onTap: () => context.push('/item', extra: item),
+                  child: GlassCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                            ),
+                            child: item.photoUrls.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                    child: Image.network(
+                                      item.photoUrls.first,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : const Icon(Icons.image, color: Colors.grey, size: 40),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on, size: 12, color: AppColors.primary),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      item.locationName ?? 'Nearby',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              childCount: listings.length,
+            ),
+          );
+        },
       ),
     );
   }

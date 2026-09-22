@@ -9,7 +9,9 @@ import 'package:demo/core/data/models/profile.dart';
 import 'package:demo/core/data/repositories/notification_repository.dart';
 import 'package:demo/core/data/repositories/request_repository.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:demo/core/presentation/widgets/liquid_glass_widgets.dart';
+
 class ActivityPage extends StatefulWidget {
   const ActivityPage({super.key});
 
@@ -21,6 +23,7 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
   final _requestRepo = RequestRepository();
   final _notificationRepo = NotificationRepository();
   StreamSubscription<List<Map<String, dynamic>>>? _notificationSub;
+  RealtimeChannel? _requestsChannel;
 
   bool _isLoading = true;
   List<AppNotification> _notifications = [];
@@ -34,6 +37,20 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
     super.initState();
 
     _loadData();
+    
+    _requestsChannel = Supabase.instance.client
+        .channel('public:item_requests:activity')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'item_requests',
+          callback: (payload) {
+            if (mounted) {
+              _loadData();
+            }
+          },
+        )
+        .subscribe();
     
     _notificationSub = _notificationRepo.getNotificationStream().listen(
       (events) {
@@ -53,12 +70,12 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
   }
 
   void _handleTabSelection(int index) {
+    if (_currentIndex == 0 && index != 0) {
+      _markNotificationsAsRead();
+    }
     setState(() {
       _currentIndex = index;
     });
-    if (index == 0) {
-      _markNotificationsAsRead();
-    }
   }
 
   void _markNotificationsAsRead() {
@@ -87,6 +104,7 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
 
   @override
   void dispose() {
+    _requestsChannel?.unsubscribe();
     _notificationSub?.cancel();
     super.dispose();
   }
@@ -101,18 +119,26 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
       ]);
       if (mounted) {
         setState(() {
-          _incomingRequests = results[0] as List<Map<String, dynamic>>;
-          _outgoingRequests = results[1] as List<Map<String, dynamic>>;
+          final rawIncoming = results[0] as List<Map<String, dynamic>>;
+          final rawOutgoing = results[1] as List<Map<String, dynamic>>;
+          
+          final now = DateTime.now();
+          bool filterCompleted(Map<String, dynamic> req) {
+            if (req['status'] == 'COMPLETED') {
+              final updatedAt = DateTime.parse(req['updated_at']);
+              return now.difference(updatedAt).inHours < 24;
+            }
+            return true;
+          }
+          
+          _incomingRequests = rawIncoming.where(filterCompleted).toList();
+          _outgoingRequests = rawOutgoing.where(filterCompleted).toList();
           
           if (_notifications.isEmpty) {
             _notifications = results[2] as List<AppNotification>;
           }
           _isLoading = false;
         });
-        
-        if (_currentIndex == 0) {
-          _markNotificationsAsRead();
-        }
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
@@ -195,7 +221,16 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
             return StaggeredListItem(
               index: index,
               child: PhysicsCard(
-                onTap: () {},
+                onTap: () {
+                  final reqId = notif.data?['request_id'];
+                  if (reqId != null) {
+                    if (notif.type == 'request_received') {
+                      context.push('/owner-request-detail/$reqId').then((_) => _loadData());
+                    } else {
+                      context.push('/requester-request-detail/$reqId').then((_) => _loadData());
+                    }
+                  }
+                },
                 child: _buildNotificationItem(notif),
               ),
             );
@@ -227,69 +262,90 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
         iconColor = const Color(0xFFA259FF);
     }
 
-    return GlassCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [iconColor.withValues(alpha: 0.2), iconColor.withValues(alpha: 0.05)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              border: Border.all(color: iconColor.withValues(alpha: 0.3), width: 1),
-            ),
-            child: Icon(icon, color: iconColor, size: 26),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
+    return Stack(
+      children: [
+        GlassCard(
+          padding: const EdgeInsets.all(14.0),
+          child: Container(
+            padding: !notif.isRead ? const EdgeInsets.all(4) : EdgeInsets.zero,
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        notif.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                          color: Colors.black87,
-                          letterSpacing: -0.3,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [iconColor.withValues(alpha: 0.2), iconColor.withValues(alpha: 0.05)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    Text(
-                      _formatTimeAgo(notif.createdAt),
-                      style: TextStyle(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                    shape: BoxShape.circle,
+                    border: Border.all(color: iconColor.withValues(alpha: 0.3), width: 1),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 26),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  notif.message,
-                  style: TextStyle(
-                    color: Colors.black.withValues(alpha: 0.6), 
-                    fontSize: 14, 
-                    height: 1.3,
-                    fontWeight: FontWeight.w500,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              notif.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                                color: Colors.black87,
+                                letterSpacing: -0.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            _formatTimeAgo(notif.createdAt),
+                            style: TextStyle(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        notif.message,
+                        style: TextStyle(
+                          color: Colors.black.withValues(alpha: 0.6), 
+                          fontSize: 14, 
+                          height: 1.3,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+        if (!notif.isRead)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: Color(0xFF007AFF),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -320,21 +376,25 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
             return StaggeredListItem(
               index: index,
               child: PhysicsCard(
-                onTap: () {
+                onTap: () async {
                   final request = ItemRequest.fromJson(data);
                   final listing = Listing.fromJson(data['listing']);
                   final profile = Profile.fromJson(profileData);
                   if (isIncoming) {
-                    context.push('/owner_request_detail', extra: {
+                    await context.push('/owner_request_detail', extra: {
                       'request': request,
                       'listing': listing,
                       'requester': profile,
                     });
                   } else {
-                    context.push('/requester_request_detail', extra: {
+                    await context.push('/requester_request_detail', extra: {
                       'request': request,
                       'listing': listing,
                     });
+                  }
+                  // Refresh data when returning from detail page
+                  if (mounted) {
+                    _loadData();
                   }
                 },
                 child: _buildRequestItem(

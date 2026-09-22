@@ -62,6 +62,23 @@ class ListingRepository {
     return (response as List).map((e) => Listing.fromJson(e)).toList();
   }
 
+  Stream<List<Listing>> streamActiveListings() {
+    return _client
+        .from('listings')
+        .stream(primaryKey: ['id'])
+        .eq('status', 'ACTIVE')
+        .order('created_at', ascending: false)
+        .map((data) => data.map((e) => Listing.fromJson(e)).toList());
+  }
+
+  Future<int> getTotalActiveListingsCount() async {
+    final response = await _client
+        .from('listings')
+        .select('id')
+        .eq('status', 'ACTIVE');
+    return (response as List).length;
+  }
+
   Future<List<Listing>> getUserListings() async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
@@ -83,6 +100,16 @@ class ListingRepository {
         .eq('mode', mode)
         .order('created_at', ascending: false);
     return (response as List).map((e) => Listing.fromJson(e)).toList();
+  }
+
+  Stream<List<Listing>> streamListingsByMode(String mode) {
+    return _client
+        .from('listings')
+        .stream(primaryKey: ['id'])
+        .eq('status', 'ACTIVE')
+        .eq('mode', mode)
+        .order('created_at', ascending: false)
+        .map((data) => data.map((e) => Listing.fromJson(e)).toList());
   }
 
   /// Delete a listing by ID

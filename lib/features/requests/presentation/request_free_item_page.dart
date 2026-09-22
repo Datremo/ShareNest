@@ -54,13 +54,22 @@ class _RequestFreeItemPageState extends State<RequestFreeItemPage> {
 
   Future<void> _pickDateTime() async {
     final firstDate = _availableDates.isNotEmpty ? _availableDates.first : DateTime.now();
-    final lastDate = _availableDates.isNotEmpty ? _availableDates.last : DateTime.now().add(const Duration(days: 365));
+    final lastDate = firstDate.add(const Duration(days: 365)); // For GIVE, it's open ended
+    final minDate = firstDate.isBefore(DateTime.now()) ? DateTime.now() : firstDate;
     
+    var safeLastDate = lastDate;
+    if (safeLastDate.isBefore(minDate)) safeLastDate = minDate;
+    
+    // Ensure initialDate is within bounds
+    var safeInitialDate = _selectedPickupDate;
+    if (safeInitialDate.isBefore(minDate)) safeInitialDate = minDate;
+    if (safeInitialDate.isAfter(safeLastDate)) safeInitialDate = safeLastDate;
+
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: _selectedPickupDate,
-      firstDate: DateTime.now().isBefore(firstDate) ? DateTime.now() : firstDate,
-      lastDate: lastDate,
+      initialDate: safeInitialDate,
+      firstDate: minDate,
+      lastDate: safeLastDate,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(primary: AppColors.primary, onPrimary: Colors.white, onSurface: AppColors.primaryDark),

@@ -32,14 +32,13 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
 
   // Categories
   final List<String> _categories = [
-    'Tools',
+    'DIY & Power Tools',
+    'Camping & Outdoors',
+    'Kitchen & Party',
+    'Books & Games',
+    'Sports & Fitness',
     'Electronics',
-    'Home & Kitchen',
-    'Sports',
-    'Books',
-    'Party',
-    'Garden',
-    'Camping',
+    'Clothing',
     'Others',
   ];
 
@@ -239,11 +238,9 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
         children: [
           _buildStep1(),
           _buildStep2(),
-          _buildReviewStep(),
-          _buildSuccessStep(),
         ],
       ),
-      bottomNavigationBar: _currentStep < 3 ? _buildBottomBar() : const SizedBox.shrink(),
+      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -403,6 +400,37 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
             ),
             const SizedBox(height: 32),
             
+            
+            // Dates
+            _buildLabel('Availability Date *'),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: _selectDate,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.grey200),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_month_rounded, color: AppColors.primary),
+                    const SizedBox(width: 12),
+                    Text(
+                      _availableFrom != null 
+                          ? DateFormat('MMM d, yyyy').format(_availableFrom!)
+                          : 'Select date',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _availableFrom != null ? AppColors.primaryDark : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             // Location
             _buildLabel('Pickup Location *'),
             const SizedBox(height: 8),
@@ -667,39 +695,55 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
                 child: const Text('Back', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
               ),
             const Spacer(),
-            _currentStep == 2
-                ? AnimatedFlyingButton(
-                    text: 'Publish',
-                    isPrimary: true,
-                    onPressed: () {
-                      _publishPost();
-                    },
-                  )
-                : ElevatedButton(
-                    onPressed: () {
-                      if (_currentStep == 0) {
-                        if ((_formKey1.currentState?.validate() ?? false)) {
-                          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                        }
-                      } else if (_currentStep == 1) {
-                        if ((_formKey2.currentState?.validate() ?? false)) {
-                          if (_availableFrom == null && !_availableImmediately) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an availability date.')));
-                            return;
-                          }
-                          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.give,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      elevation: 8,
-                      shadowColor: AppColors.give.withValues(alpha: 0.4),
-                    ),
-                    child: const Text('Next', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                  ),
+            ElevatedButton(
+              onPressed: () {
+                if (_currentStep == 0) {
+                  if ((_formKey1.currentState?.validate() ?? false)) {
+                    _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                  }
+                } else if (_currentStep == 1) {
+                  if ((_formKey2.currentState?.validate() ?? false)) {
+                    if (_availableFrom == null && !_availableImmediately) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an availability date.')));
+                      return;
+                    }
+                    final listing = Listing(
+                      id: '',
+                      ownerId: '',
+                      mode: 'GIVE',
+                      title: _titleController.text.trim(),
+                      description: _descriptionController.text.trim(),
+                      categoryId: _selectedCategory!.toLowerCase().replaceAll(' & ', '_').replaceAll(' ', '_'),
+                      photoUrls: [],
+                      status: 'ACTIVE',
+                      condition: _selectedCondition,
+                      brand: _brandController.text.trim(),
+                      quantity: int.tryParse(_quantityController.text) ?? 1,
+                      locationName: _locationController.text.trim(),
+                      availability: [
+                        _availableImmediately ? DateTime.now().toIso8601String() : _availableFrom!.toIso8601String(),
+                      ],
+                      preferences: {
+                        'tags': _tags,
+                        'includedItems': _includedItems,
+                      },
+                    );
+                    context.push('/review_post', extra: {
+                      'listing': listing,
+                      'images': _pickedImages,
+                    });
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.give,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                elevation: 8,
+                shadowColor: AppColors.give.withValues(alpha: 0.4),
+              ),
+              child: Text(_currentStep == 1 ? 'Review' : 'Next', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
           ],
         ),
       ),

@@ -1,36 +1,33 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/data/models/listing.dart';
-import '../../../core/data/models/item_request.dart';
-import '../../../core/data/repositories/request_repository.dart';
-import 'widgets/animated_send_icon.dart';
+import '../../../core/data/repositories/listing_repository.dart';
+import '../../requests/presentation/widgets/animated_send_icon.dart';
 
-class ReviewRequestPage extends StatefulWidget {
+class ReviewPostPage extends StatefulWidget {
   final Listing listing;
-  final String message;
-  final DateTime? startDate;
-  final DateTime? endDate;
-  final DateTime? pickupTime;
+  final List<XFile> images;
 
-  const ReviewRequestPage({
+  const ReviewPostPage({
     super.key,
     required this.listing,
-    required this.message,
-    this.startDate,
-    this.endDate,
-    this.pickupTime,
+    required this.images,
   });
 
   @override
-  State<ReviewRequestPage> createState() => _ReviewRequestPageState();
+  State<ReviewPostPage> createState() => _ReviewPostPageState();
 }
 
-class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTickerProviderStateMixin {
-  final RequestRepository _requestRepo = RequestRepository();
+class _ReviewPostPageState extends State<ReviewPostPage> with SingleTickerProviderStateMixin {
+  final ListingRepository _listingRepo = ListingRepository();
   bool _isSubmitting = false;
 
   late AnimationController _animationController;
@@ -55,32 +52,36 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
     super.dispose();
   }
 
-  Future<void> _submitRequest() async {
+  Future<void> _submitPost() async {
     setState(() => _isSubmitting = true);
     _animationController.forward();
 
     try {
-      final request = ItemRequest(
-        id: '',
-        listingId: widget.listing.id,
-        requesterId: '', 
-        status: 'PENDING',
-        message: widget.message,
-        startDate: widget.startDate,
-        endDate: widget.endDate,
-        pickupTime: widget.pickupTime,
-        duration: widget.startDate != null && widget.endDate != null
-            ? '${widget.endDate!.difference(widget.startDate!).inDays} days'
-            : null,
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('You must be logged in to post.');
+
+      List<String> photoUrls = [];
+      if (widget.images.isNotEmpty) {
+        for (final image in widget.images) {
+          final bytes = await image.readAsBytes();
+          final ext = image.name.split('.').last;
+          final url = await _listingRepo.uploadListingImage(bytes, ext);
+          photoUrls.add(url);
+        }
+      }
+
+      final listingToSave = widget.listing.copyWith(
+        ownerId: user.id,
+        photoUrls: photoUrls,
       );
 
-      await _requestRepo.createRequest(request);
+      await _listingRepo.createListing(listingToSave);
       
       // Wait for animation to finish visually
       await Future.delayed(const Duration(milliseconds: 600));
 
       if (mounted) {
-        context.pushReplacement('/request-sent');
+        context.pushReplacement('/post_published');
       }
     } catch (e) {
       if (mounted) {
@@ -99,12 +100,12 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.6),
+            color: Colors.white.withOpacity(0.6),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
+            border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: Colors.black.withOpacity(0.05),
                 blurRadius: 24,
                 spreadRadius: -5,
                 offset: const Offset(0, 10),
@@ -164,7 +165,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
           icon: const Icon(CupertinoIcons.back, color: AppColors.primaryDark),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Review Order', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Review Post', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
       ),
       body: Stack(
@@ -176,7 +177,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
               width: 300, height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.15),
+                color: AppColors.primary.withOpacity(0.15),
               ),
             ),
           ),
@@ -186,7 +187,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
               width: 250, height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.blueAccent.withValues(alpha: 0.1),
+                color: Colors.blueAccent.withOpacity(0.1),
               ),
             ),
           ),
@@ -201,14 +202,13 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                 _buildGlassCard(
                   child: Row(
                     children: [
-                      Hero(
-                        tag: 'listing_img_${widget.listing.id}',
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: widget.listing.photoUrls.isNotEmpty
-                              ? Image.network(widget.listing.photoUrls.first, width: 80, height: 80, fit: BoxFit.cover)
-                              : Container(width: 80, height: 80, color: Colors.grey[200], child: const Icon(Icons.image, color: Colors.grey)),
-                        ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: widget.images.isNotEmpty
+                            ? (kIsWeb 
+                                ? Image.network(widget.images.first.path, width: 80, height: 80, fit: BoxFit.cover)
+                                : Image.file(File(widget.images.first.path), width: 80, height: 80, fit: BoxFit.cover))
+                            : Container(width: 80, height: 80, color: Colors.grey[200], child: const Icon(Icons.image, color: Colors.grey)),
                       ),
                       const SizedBox(width: 20),
                       Expanded(
@@ -218,7 +218,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.15),
+                                color: AppColors.primary.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(mode.toUpperCase(), style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
@@ -235,49 +235,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                 ),
                 const SizedBox(height: 24),
                 
-                const SizedBox(height: 24),
-                
-                const Text('Item Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.5)),
-                const SizedBox(height: 16),
-                
-                _buildGlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (widget.listing.description != null && widget.listing.description!.isNotEmpty) ...[
-                        const Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black54)),
-                        const SizedBox(height: 4),
-                        Text(widget.listing.description!, style: const TextStyle(fontSize: 14, color: AppColors.primaryDark, fontWeight: FontWeight.w500)),
-                        const Divider(height: 24, thickness: 1, color: Colors.black12),
-                      ],
-                      if (widget.listing.condition != null) ...[
-                        _buildDataRow('Condition', widget.listing.condition!),
-                        const Divider(height: 24, thickness: 1, color: Colors.black12),
-                      ],
-                      if (widget.listing.brand != null && widget.listing.brand!.isNotEmpty) ...[
-                        _buildDataRow('Brand', widget.listing.brand!),
-                        const Divider(height: 24, thickness: 1, color: Colors.black12),
-                      ],
-                      if (widget.listing.preferences != null) ...[
-                        if (widget.listing.preferences!['maxDays'] != null) ...[
-                          _buildDataRow('Max Borrow Days', '${widget.listing.preferences!['maxDays']} days'),
-                          const Divider(height: 24, thickness: 1, color: Colors.black12),
-                        ],
-                        if (widget.listing.preferences!['securityDeposit'] != null) ...[
-                          _buildDataRow('Security Deposit', '₹${widget.listing.preferences!['securityDeposit']}'),
-                          const Divider(height: 24, thickness: 1, color: Colors.black12),
-                        ],
-                        if (widget.listing.preferences!['guidelines'] != null && widget.listing.preferences!['guidelines'].toString().isNotEmpty) ...[
-                          const Text('Guidelines', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black54)),
-                          const SizedBox(height: 4),
-                          Text(widget.listing.preferences!['guidelines'].toString(), style: const TextStyle(fontSize: 14, color: AppColors.primaryDark, fontWeight: FontWeight.w500)),
-                        ],
-                      ],
-                    ],
-                  ),
-                ),
-
-                const Text('Order Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.5)),
+                const Text('Post Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.5)),
                 const SizedBox(height: 16),
                 
                 // Details Table Card
@@ -286,26 +244,30 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                     children: [
                       _buildDataRow('Transaction Type', mode.toUpperCase()),
                       const Divider(height: 24, thickness: 1, color: Colors.black12),
+                      _buildDataRow('Category', widget.listing.categoryId),
+                      const Divider(height: 24, thickness: 1, color: Colors.black12),
+                      _buildDataRow('Condition', widget.listing.condition ?? 'Not specified'),
                       
-                      if (widget.startDate != null && widget.endDate != null) ...[
-                        _buildDataRow('Duration', '${widget.endDate!.difference(widget.startDate!).inDays} days', isHighlight: true),
+                      if (widget.listing.availability != null && widget.listing.availability!.isNotEmpty) ...[
                         const Divider(height: 24, thickness: 1, color: Colors.black12),
-                        _buildDataRow('Borrow Start', DateFormat('MMM d, yyyy').format(widget.startDate!)),
-                        const Divider(height: 24, thickness: 1, color: Colors.black12),
-                        _buildDataRow('Expected Return', DateFormat('MMM d, yyyy').format(widget.endDate!)),
-                        const Divider(height: 24, thickness: 1, color: Colors.black12),
+                        _buildDataRow('Available From', DateFormat('MMM d, yyyy').format(DateTime.parse(widget.listing.availability![0]))),
+                        if (widget.listing.availability!.length > 1) ...[
+                          const Divider(height: 24, thickness: 1, color: Colors.black12),
+                          _buildDataRow('Available Until', DateFormat('MMM d, yyyy').format(DateTime.parse(widget.listing.availability![1]))),
+                        ],
                       ],
-                      
-                      if (widget.pickupTime != null) ...[
-                        _buildDataRow('Handover Time', DateFormat('MMM d, yyyy • h:mm a').format(widget.pickupTime!), isHighlight: true),
+
+                      if (widget.listing.preferences?['returnPeriod'] != null) ...[
+                        const Divider(height: 24, thickness: 1, color: Colors.black12),
+                        _buildDataRow('Return Period', widget.listing.preferences!['returnPeriod'], isHighlight: true),
                       ],
                     ],
                   ),
                 ),
                 
-                if (widget.message.isNotEmpty) ...[
+                if (widget.listing.description?.isNotEmpty ?? false) ...[
                   const SizedBox(height: 24),
-                  const Text('Your Message', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.5)),
+                  const Text('Description', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.5)),
                   const SizedBox(height: 16),
                   _buildGlassCard(
                     child: Row(
@@ -315,7 +277,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            widget.message,
+                            widget.listing.description!,
                             style: const TextStyle(fontSize: 15, color: AppColors.primaryDark, height: 1.5, fontWeight: FontWeight.w500, fontStyle: FontStyle.italic),
                           ),
                         ),
@@ -337,7 +299,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFFF2F4F7).withValues(alpha: 0),
+                    const Color(0xFFF2F4F7).withOpacity(0),
                     const Color(0xFFF2F4F7),
                     const Color(0xFFF2F4F7),
                   ],
@@ -345,7 +307,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                 ),
               ),
               child: GestureDetector(
-                onTap: _isSubmitting ? null : _submitRequest,
+                onTap: _isSubmitting ? null : _submitPost,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   height: 64,
@@ -353,7 +315,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                     color: _isSubmitting ? AppColors.primaryDark : AppColors.primary,
                     borderRadius: BorderRadius.circular(32),
                     boxShadow: _isSubmitting ? [] : [
-                      BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10)),
+                      BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
                     ],
                   ),
                   child: Stack(
@@ -365,7 +327,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Confirm & Send Request', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                            Text('Confirm & Publish', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
                             SizedBox(width: 8),
                             Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
                           ],

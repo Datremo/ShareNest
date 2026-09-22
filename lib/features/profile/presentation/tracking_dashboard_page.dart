@@ -22,6 +22,24 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
 
   List<Map<String, dynamic>> _myRequests = [];
   List<Map<String, dynamic>> _incomingRequests = [];
+  
+  DateTimeRange? _selectedDateRange;
+
+  List<Map<String, dynamic>> get _filteredMyRequests {
+    if (_selectedDateRange == null) return _myRequests;
+    return _myRequests.where((req) {
+      final date = DateTime.parse(req['created_at']);
+      return date.isAfter(_selectedDateRange!.start) && date.isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> get _filteredIncomingRequests {
+    if (_selectedDateRange == null) return _incomingRequests;
+    return _incomingRequests.where((req) {
+      final date = DateTime.parse(req['created_at']);
+      return date.isAfter(_selectedDateRange!.start) && date.isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
+    }).toList();
+  }
 
   late TabController _tabController;
 
@@ -56,6 +74,80 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
     }
   }
 
+  void _showFilterOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Filter History', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                if (_selectedDateRange != null)
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _selectedDateRange = null);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Clear', style: TextStyle(color: Colors.redAccent)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildFilterOption('Yesterday', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 1)), end: DateTime.now())),
+            _buildFilterOption('This Week', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 7)), end: DateTime.now())),
+            _buildFilterOption('This Month', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 30)), end: DateTime.now())),
+            ListTile(
+              title: const Text('Custom Range...', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
+              trailing: const Icon(Icons.date_range_rounded, color: AppColors.primary),
+              onTap: () async {
+                Navigator.pop(context);
+                final range = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                  builder: (context, child) => Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(primary: AppColors.primary, onPrimary: Colors.white, onSurface: AppColors.primaryDark),
+                    ),
+                    child: child!,
+                  ),
+                );
+                if (range != null) {
+                  setState(() => _selectedDateRange = range);
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterOption(String title, DateTimeRange range) {
+    bool isSelected = _selectedDateRange?.start.year == range.start.year && 
+                      _selectedDateRange?.start.month == range.start.month && 
+                      _selectedDateRange?.start.day == range.start.day;
+    return ListTile(
+      title: Text(title, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500, color: AppColors.primaryDark)),
+      trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+      onTap: () {
+        setState(() => _selectedDateRange = range);
+        Navigator.pop(context);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,6 +175,16 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _selectedDateRange != null ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
+              color: _selectedDateRange != null ? AppColors.primary : AppColors.primaryDark,
+            ),
+            onPressed: _showFilterOptions,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -155,9 +257,9 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
 
   Widget _buildAnimatedKPIs() {
     final activeStates = ['ACCEPTED', 'ACTIVE', 'RETURN_REQUESTED'];
-    int activeLendsCount = _incomingRequests.where((r) => activeStates.contains(r['status'])).length;
-    int activeBorrowsCount = _myRequests.where((r) => activeStates.contains(r['status'])).length;
-    int totalImpact = activeLendsCount + activeBorrowsCount + _myRequests.where((r)=> r['status'] == 'COMPLETED').length + _incomingRequests.where((r)=> r['status'] == 'COMPLETED').length;
+    int activeLendsCount = _filteredIncomingRequests.where((r) => activeStates.contains(r['status'])).length;
+    int activeBorrowsCount = _filteredMyRequests.where((r) => activeStates.contains(r['status'])).length;
+    int totalImpact = activeLendsCount + activeBorrowsCount + _filteredMyRequests.where((r)=> r['status'] == 'COMPLETED').length + _filteredIncomingRequests.where((r)=> r['status'] == 'COMPLETED').length;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -241,21 +343,21 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
 
   Widget _buildActiveBorrows() {
     final activeStates = ['ACCEPTED', 'ACTIVE', 'RETURN_REQUESTED'];
-    final active = _myRequests.where((r) => activeStates.contains(r['status'])).toList();
+    final active = _filteredMyRequests.where((r) => activeStates.contains(r['status'])).toList();
     if (active.isEmpty) return _buildEmptyState('No Active Borrows', 'Your borrowing pipeline is clear.', Icons.shopping_bag_outlined);
     return _buildList(active, isOwner: false);
   }
 
   Widget _buildActiveLends() {
     final activeStates = ['ACCEPTED', 'ACTIVE', 'RETURN_REQUESTED'];
-    final active = _incomingRequests.where((r) => activeStates.contains(r['status'])).toList();
+    final active = _filteredIncomingRequests.where((r) => activeStates.contains(r['status'])).toList();
     if (active.isEmpty) return _buildEmptyState('No Active Shares', 'Your sharing pipeline is clear.', Icons.handshake_outlined);
     return _buildList(active, isOwner: true);
   }
 
   Widget _buildPendingRequests() {
-    final pendingMy = _myRequests.where((r) => r['status'] == 'PENDING').map((e) => {...e, 'isOwner': false});
-    final pendingIncoming = _incomingRequests.where((r) => r['status'] == 'PENDING').map((e) => {...e, 'isOwner': true});
+    final pendingMy = _filteredMyRequests.where((r) => r['status'] == 'PENDING').map((e) => {...e, 'isOwner': false});
+    final pendingIncoming = _filteredIncomingRequests.where((r) => r['status'] == 'PENDING').map((e) => {...e, 'isOwner': true});
     final pending = [...pendingIncoming, ...pendingMy];
     pending.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
     if (pending.isEmpty) return _buildEmptyState('No Pending Requests', 'All caught up!', Icons.check_circle_outline);
@@ -264,8 +366,8 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
 
   Widget _buildHistory() {
     final historyStates = ['COMPLETED', 'REJECTED', 'CANCELLED'];
-    final historyMy = _myRequests.where((r) => historyStates.contains(r['status'])).map((e) => {...e, 'isOwner': false});
-    final historyIncoming = _incomingRequests.where((r) => historyStates.contains(r['status'])).map((e) => {...e, 'isOwner': true});
+    final historyMy = _filteredMyRequests.where((r) => historyStates.contains(r['status'])).map((e) => {...e, 'isOwner': false});
+    final historyIncoming = _filteredIncomingRequests.where((r) => historyStates.contains(r['status'])).map((e) => {...e, 'isOwner': true});
     final history = [...historyIncoming, ...historyMy];
     history.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
     if (history.isEmpty) return _buildEmptyState('No History', 'Data logs are empty.', Icons.history);

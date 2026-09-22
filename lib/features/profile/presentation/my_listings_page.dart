@@ -15,6 +15,81 @@ class _MyListingsPageState extends State<MyListingsPage> {
   final ListingRepository _listingRepository = ListingRepository();
   int _activeTabIndex = 0; // 0: Active, 1: Paused, 2: Closed
   String _selectedFilter = 'All';
+  DateTimeRange? _selectedDateRange;
+
+  void _showFilterOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Filter by Date', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                if (_selectedDateRange != null)
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _selectedDateRange = null);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Clear', style: TextStyle(color: Colors.redAccent)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildDateFilterOption('Yesterday', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 1)), end: DateTime.now())),
+            _buildDateFilterOption('This Week', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 7)), end: DateTime.now())),
+            _buildDateFilterOption('This Month', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 30)), end: DateTime.now())),
+            ListTile(
+              title: const Text('Custom Range...', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
+              trailing: const Icon(Icons.date_range_rounded, color: AppColors.primary),
+              onTap: () async {
+                Navigator.pop(context);
+                final range = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                  builder: (context, child) => Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(primary: AppColors.primary, onPrimary: Colors.white, onSurface: AppColors.primaryDark),
+                    ),
+                    child: child!,
+                  ),
+                );
+                if (range != null) {
+                  setState(() => _selectedDateRange = range);
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateFilterOption(String title, DateTimeRange range) {
+    bool isSelected = _selectedDateRange?.start.year == range.start.year && 
+                      _selectedDateRange?.start.month == range.start.month && 
+                      _selectedDateRange?.start.day == range.start.day;
+    return ListTile(
+      title: Text(title, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500, color: AppColors.primaryDark)),
+      trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+      onTap: () {
+        setState(() => _selectedDateRange = range);
+        Navigator.pop(context);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +106,16 @@ class _MyListingsPageState extends State<MyListingsPage> {
           'My Listings',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _selectedDateRange != null ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
+              color: _selectedDateRange != null ? AppColors.primary : Colors.black,
+            ),
+            onPressed: _showFilterOptions,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -46,7 +131,14 @@ class _MyListingsPageState extends State<MyListingsPage> {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          final allListings = snapshot.data ?? [];
+          var allListings = snapshot.data ?? [];
+          
+          if (_selectedDateRange != null) {
+            allListings = allListings.where((l) {
+              if (l.createdAt == null) return false;
+              return l.createdAt!.isAfter(_selectedDateRange!.start) && l.createdAt!.isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
+            }).toList();
+          }
           
           final activeListings = allListings.where((l) => l.status == 'ACTIVE').toList();
           final pausedListings = allListings.where((l) => l.status == 'PAUSED').toList();

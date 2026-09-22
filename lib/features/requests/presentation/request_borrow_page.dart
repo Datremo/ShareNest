@@ -70,11 +70,25 @@ class _RequestBorrowPageState extends State<RequestBorrowPage> {
     
     final initialDate = isPickup ? _selectedPickupDate : _selectedReturnDate;
     
+    // The earliest date they can pick is either today or the availability start date (whichever is later)
+    final minDate = firstDate.isBefore(DateTime.now()) ? DateTime.now() : firstDate;
+    
+    // For return, they cannot pick a date before the pickup date
+    final pickerFirstDate = isPickup ? minDate : _selectedPickupDate;
+    
+    // Ensure initialDate and lastDate are within bounds
+    var safeLastDate = lastDate;
+    if (safeLastDate.isBefore(pickerFirstDate)) safeLastDate = pickerFirstDate;
+    
+    var safeInitialDate = initialDate;
+    if (safeInitialDate.isBefore(pickerFirstDate)) safeInitialDate = pickerFirstDate;
+    if (safeInitialDate.isAfter(safeLastDate)) safeInitialDate = safeLastDate;
+
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: isPickup ? initialDate : (initialDate.isBefore(_pickupDateTime) ? _selectedPickupDate : initialDate),
-      firstDate: isPickup ? (DateTime.now().isBefore(firstDate) ? DateTime.now() : firstDate) : _selectedPickupDate,
-      lastDate: lastDate,
+      initialDate: safeInitialDate,
+      firstDate: pickerFirstDate,
+      lastDate: safeLastDate,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(primary: AppColors.primary, onPrimary: Colors.white, onSurface: AppColors.primaryDark),

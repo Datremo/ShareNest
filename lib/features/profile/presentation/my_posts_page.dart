@@ -18,6 +18,7 @@ class _MyPostsPageState extends State<MyPostsPage> {
   List<Listing> _allListings = [];
   bool _isLoading = true;
   String _selectedFilter = 'All';
+  DateTimeRange? _selectedDateRange;
 
   @override
   void initState() {
@@ -46,8 +47,89 @@ class _MyPostsPageState extends State<MyPostsPage> {
   }
 
   List<Listing> get _filteredListings {
-    if (_selectedFilter == 'All') return _allListings;
-    return _allListings.where((l) => l.mode.toUpperCase() == _selectedFilter.toUpperCase()).toList();
+    var filtered = _allListings;
+    if (_selectedDateRange != null) {
+      filtered = filtered.where((l) {
+        if (l.createdAt == null) return false;
+        return l.createdAt!.isAfter(_selectedDateRange!.start) && l.createdAt!.isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
+      }).toList();
+    }
+    if (_selectedFilter == 'All') return filtered;
+    return filtered.where((l) => l.mode.toUpperCase() == _selectedFilter.toUpperCase()).toList();
+  }
+
+  void _showFilterOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Filter by Date', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                if (_selectedDateRange != null)
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _selectedDateRange = null);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Clear', style: TextStyle(color: Colors.redAccent)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildDateFilterOption('Yesterday', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 1)), end: DateTime.now())),
+            _buildDateFilterOption('This Week', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 7)), end: DateTime.now())),
+            _buildDateFilterOption('This Month', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 30)), end: DateTime.now())),
+            ListTile(
+              title: const Text('Custom Range...', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
+              trailing: const Icon(Icons.date_range_rounded, color: AppColors.primary),
+              onTap: () async {
+                Navigator.pop(context);
+                final range = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                  builder: (context, child) => Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(primary: AppColors.primary, onPrimary: Colors.white, onSurface: AppColors.primaryDark),
+                    ),
+                    child: child!,
+                  ),
+                );
+                if (range != null) {
+                  setState(() => _selectedDateRange = range);
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateFilterOption(String title, DateTimeRange range) {
+    bool isSelected = _selectedDateRange?.start.year == range.start.year && 
+                      _selectedDateRange?.start.month == range.start.month && 
+                      _selectedDateRange?.start.day == range.start.day;
+    return ListTile(
+      title: Text(title, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500, color: AppColors.primaryDark)),
+      trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+      onTap: () {
+        setState(() => _selectedDateRange = range);
+        Navigator.pop(context);
+      },
+    );
   }
 
   @override
@@ -63,6 +145,16 @@ class _MyPostsPageState extends State<MyPostsPage> {
         ),
         title: const Text('My Posts', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _selectedDateRange != null ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
+              color: _selectedDateRange != null ? AppColors.primary : AppColors.primaryDark,
+            ),
+            onPressed: _showFilterOptions,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Stack(
         children: [

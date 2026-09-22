@@ -58,4 +58,46 @@ class Listing {
   List<String> get imageUrls {
     return photoUrls;
   }
+
+  Listing copyWith({
+    String? id,
+    String? ownerId,
+    String? mode,
+    String? title,
+    String? categoryId,
+    String? description,
+    List<String>? photoUrls,
+    String? status,
+    double? latitude,
+    double? longitude,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? condition,
+    String? brand,
+    int? quantity,
+    String? locationName,
+    List<String>? availability,
+    Map<String, dynamic>? preferences,
+  }) {
+    return Listing(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      mode: mode ?? this.mode,
+      title: title ?? this.title,
+      categoryId: categoryId ?? this.categoryId,
+      description: description ?? this.description,
+      photoUrls: photoUrls ?? this.photoUrls,
+      status: status ?? this.status,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      condition: condition ?? this.condition,
+      brand: brand ?? this.brand,
+      quantity: quantity ?? this.quantity,
+      locationName: locationName ?? this.locationName,
+      availability: availability ?? this.availability,
+      preferences: preferences ?? this.preferences,
+    );
+  }
 }
