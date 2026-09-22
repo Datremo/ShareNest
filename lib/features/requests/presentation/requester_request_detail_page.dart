@@ -403,42 +403,48 @@ class _RequesterRequestDetailPageState extends State<RequesterRequestDetailPage>
 
   Widget _buildContactCard() {
     final profile = _ownerProfile!;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-            backgroundImage: profile.photoUrl != null ? NetworkImage(profile.photoUrl!) : null,
-            child: profile.photoUrl == null ? const Icon(CupertinoIcons.person_fill, color: AppColors.primary) : null,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Owner', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                const SizedBox(height: 4),
-                Text(profile.displayName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => context.push('/chat', extra: profile),
-            style: IconButton.styleFrom(
+    return InkWell(
+      onTap: () {
+        context.push('/user_profile?userId=${profile.id}');
+      },
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 28,
               backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              padding: const EdgeInsets.all(12),
+              backgroundImage: profile.photoUrl != null ? NetworkImage(profile.photoUrl!) : null,
+              child: profile.photoUrl == null ? const Icon(CupertinoIcons.person_fill, color: AppColors.primary) : null,
             ),
-            icon: const Icon(CupertinoIcons.chat_bubble_text_fill, color: AppColors.primary, size: 20),
-          ),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Owner', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  const SizedBox(height: 4),
+                  Text(profile.displayName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => context.push('/chat', extra: profile),
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                padding: const EdgeInsets.all(12),
+              ),
+              icon: const Icon(CupertinoIcons.chat_bubble_text_fill, color: AppColors.primary, size: 20),
+            ),
+          ],
+        ),
       ),
     );
   }

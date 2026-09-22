@@ -1,11 +1,17 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../../core/presentation/widgets/animated_checkmark.dart';
+import '../../../core/presentation/widgets/glassmorphism.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import 'dart:async';
 
+import '../../../core/data/models/listing.dart';
+
 class RequestExchangePage extends StatefulWidget {
-  const RequestExchangePage({super.key});
+  final Listing listing;
+  const RequestExchangePage({super.key, required this.listing});
 
   @override
   State<RequestExchangePage> createState() => _RequestExchangePageState();
@@ -32,9 +38,10 @@ class _RequestExchangePageState extends State<RequestExchangePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        
+        backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -62,7 +69,32 @@ class _RequestExchangePageState extends State<RequestExchangePage> {
   Widget _buildRequestForm(BuildContext context) {
     return Stack(
       children: [
-        SingleChildScrollView(
+        Positioned.fill(
+          child: Image.network(
+            widget.listing.photoUrls.isNotEmpty
+                ? widget.listing.photoUrls.first
+                : '',
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withAlpha(204),
+                  AppColors.primaryLight.withAlpha(153),
+                  AppColors.primaryLight.withAlpha(204),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,29 +232,18 @@ class _RequestExchangePageState extends State<RequestExchangePage> {
             ],
           ),
         ),
-        
-        // Sticky Button
-        Positioned(
+      ), // Close SafeArea
+      
+      // Sticky Button
+      Positioned(
           left: 0, right: 0, bottom: 0,
-          child: Container(
-            padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, -5))],
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.exchange,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                ),
+          child: SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+              child: GlassButton(
+                label: 'Send Request',
                 onPressed: _isLoading ? null : _submitRequest,
-                child: _isLoading 
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Send Request', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ),
           ),

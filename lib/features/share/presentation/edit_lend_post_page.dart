@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../core/presentation/widgets/animated_checkmark.dart';
 import '../../../core/presentation/widgets/liquid_glass_container.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +9,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/theme/app_colors.dart';
+import 'package:demo/core/theme/app_colors.dart';
+import 'package:demo/core/presentation/widgets/animated_flying_button.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/repositories/listing_repository.dart';
 
@@ -54,7 +56,11 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
 
   // Step 2 State
   DateTime? _availableFrom;
-  bool _availableImmediately = false;
+  DateTime? _availableUntil;
+  
+  // Return Period State
+  final _returnPeriodNumberController = TextEditingController(text: '1');
+  String _returnPeriodUnit = 'Week(s)';
   final _locationController = TextEditingController();
   final _tagInputController = TextEditingController();
   final _includedInputController = TextEditingController();
@@ -80,9 +86,22 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
 
     if (widget.listing.availability != null && widget.listing.availability!.isNotEmpty) {
       try {
-        final parsedDate = DateTime.parse(widget.listing.availability![0]);
-        _availableFrom = parsedDate;
+        _availableFrom = DateTime.parse(widget.listing.availability![0]);
+        if (widget.listing.availability!.length > 1) {
+          _availableUntil = DateTime.parse(widget.listing.availability![1]);
+        }
       } catch (_) {}
+    }
+    
+    if (widget.listing.preferences != null) {
+        final rp = widget.listing.preferences!['returnPeriod'];
+        if (rp != null) {
+            final parts = rp.toString().split(' ');
+            if (parts.length >= 2) {
+                _returnPeriodNumberController.text = parts[0];
+                _returnPeriodUnit = parts.sublist(1).join(' ');
+            }
+        }
     }
 
     if (widget.listing.preferences != null) {
@@ -123,12 +142,14 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
     });
   }
 
-  Future<void> _selectDate() async {
-    final picked = await showDatePicker(
+  Future<void> _selectDateRange() async {
+    final picked = await showDateRangePicker(
       context: context,
-      initialDate: _availableFrom ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDateRange: _availableFrom != null && _availableUntil != null
+          ? DateTimeRange(start: _availableFrom!, end: _availableUntil!)
+          : null,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -145,8 +166,8 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
 
     if (picked != null) {
       setState(() {
-        _availableFrom = picked;
-        _availableImmediately = false;
+        _availableFrom = picked.start;
+        _availableUntil = picked.end;
       });
     }
   }
@@ -176,7 +197,7 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
         _descriptionController.text.isEmpty ||
         _selectedCategory == null ||
         _locationController.text.isEmpty ||
-        (_availableFrom == null && !_availableImmediately)) {
+        (_availableFrom == null || _availableUntil == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields.')),
       );
@@ -213,11 +234,13 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
         quantity: int.tryParse(_quantityController.text) ?? 1,
         locationName: _locationController.text.trim(),
         availability: [
-          _availableImmediately ? DateTime.now().toIso8601String() : _availableFrom!.toIso8601String(),
+          _availableFrom!.toIso8601String(),
+          _availableUntil!.toIso8601String(),
         ],
         preferences: {
           'tags': _tags,
           'includedItems': _includedItems,
+          'returnPeriod': '${_returnPeriodNumberController.text.trim()} $_returnPeriodUnit',
         },
       );
 
@@ -437,57 +460,64 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
             const SizedBox(height: 32),
             
             // Dates
-            _buildLabel('Available From *'),
+            _buildLabel('Availability Dates *'),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: _selectDateRange,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.grey200),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_month_rounded, color: AppColors.primary),
+                    const SizedBox(width: 12),
+                    Text(
+                      _availableFrom != null && _availableUntil != null
+                          ? '${DateFormat('MMM d, yyyy').format(_availableFrom!)} - ${DateFormat('MMM d, yyyy').format(_availableUntil!)}'
+                          : 'Select date range',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _availableFrom != null ? AppColors.primaryDark : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Return Period
+            _buildLabel('Return Period *'),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
-                  child: InkWell(
-                    onTap: _availableImmediately ? null : _selectDate,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.grey200),
-                        borderRadius: BorderRadius.circular(16),
-                        color: _availableImmediately ? AppColors.grey50 : Colors.white,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_month_rounded, color: _availableImmediately ? Colors.grey : AppColors.primary),
-                          const SizedBox(width: 12),
-                          Text(
-                            _availableFrom != null
-                                ? DateFormat('MMM d, yyyy').format(_availableFrom!)
-                                : 'Select date',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: _availableFrom != null && !_availableImmediately ? AppColors.primaryDark : Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  flex: 1,
+                  child: TextFormField(
+                    controller: _returnPeriodNumberController,
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v!.isEmpty ? 'Required' : null,
+                    decoration: _inputDecoration('e.g. 1'),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Checkbox(
-                  value: _availableImmediately,
-                  activeColor: AppColors.primary,
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _availableImmediately = val;
-                        if (val) _availableFrom = null;
-                      });
-                    }
-                  },
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: _returnPeriodUnit,
+                    items: ['Day(s)', 'Week(s)', 'Month(s)'].map((u) {
+                      return DropdownMenuItem(value: u, child: Text(u));
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _returnPeriodUnit = val);
+                    },
+                    decoration: _inputDecoration(''),
+                  ),
                 ),
-                const Text('Available Immediately', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
               ],
             ),
             const SizedBox(height: 24),
@@ -577,6 +607,7 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
     );
   }
 
+  
   Widget _buildSuccessStep() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -587,7 +618,7 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
             color: AppColors.success.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 80),
+          child: const AnimatedCheckmark(color: AppColors.success, size: 80),
         ),
         const SizedBox(height: 32),
         const Text(
@@ -627,36 +658,36 @@ class _EditLendPostPageState extends State<EditLendPostPage> {
                 child: const Text('Back', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
               ),
             const Spacer(),
-            ElevatedButton(
-              onPressed: _isPublishing
-                  ? null
-                  : () {
-                      if (_currentStep == 0) {
-                        if (_formKey1.currentState!.validate()) {
-                          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+            _currentStep == 1
+                ? AnimatedFlyingButton(
+                    text: 'Save Changes',
+                    icon: Icons.save_rounded,
+                    isPrimary: true,
+                    onPressed: () {
+                      if ((_formKey2.currentState?.validate() ?? false)) {
+                        if (_availableFrom == null || _availableUntil == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select availability dates.')));
+                          return;
                         }
-                      } else if (_currentStep == 1) {
-                        if (_formKey2.currentState!.validate()) {
-                          if (_availableFrom == null && !_availableImmediately) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an availability date.')));
-                            return;
-                          }
-                          _publishPost();
-                        }
+                        _publishPost();
                       }
                     },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: _isPublishing
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text(
-                      _currentStep == 0 ? 'Next' : 'Save Changes',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  )
+                : ElevatedButton(
+                    onPressed: () {
+                      if ((_formKey1.currentState?.validate() ?? false)) {
+                        _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                      elevation: 8,
+                      shadowColor: AppColors.primary.withValues(alpha: 0.4),
                     ),
-            ),
+                    child: const Text('Next', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
           ],
         ),
       ),

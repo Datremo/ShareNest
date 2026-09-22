@@ -85,7 +85,7 @@ class TransactionProgressTracker extends StatelessWidget {
               color: isActive ? AppColors.primary : Colors.grey[100],
               shape: BoxShape.circle,
               boxShadow: isCurrent ? [
-                BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 12, spreadRadius: 2)
+                BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 2)
               ] : [],
             ),
             child: Icon(

@@ -8,7 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/theme/app_colors.dart';
+import 'package:demo/core/theme/app_colors.dart';
+import 'package:demo/core/presentation/widgets/animated_flying_button.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/repositories/listing_repository.dart';
 
@@ -436,61 +437,7 @@ class _EditGivePostPageState extends State<EditGivePostPage> {
             ),
             const SizedBox(height: 32),
             
-            // Dates
-            _buildLabel('Available From *'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: _availableImmediately ? null : _selectDate,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.grey200),
-                        borderRadius: BorderRadius.circular(16),
-                        color: _availableImmediately ? AppColors.grey50 : Colors.white,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_month_rounded, color: _availableImmediately ? Colors.grey : AppColors.primary),
-                          const SizedBox(width: 12),
-                          Text(
-                            _availableFrom != null
-                                ? DateFormat('MMM d, yyyy').format(_availableFrom!)
-                                : 'Select date',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: _availableFrom != null && !_availableImmediately ? AppColors.primaryDark : Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Checkbox(
-                  value: _availableImmediately,
-                  activeColor: AppColors.primary,
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _availableImmediately = val;
-                        if (val) _availableFrom = null;
-                      });
-                    }
-                  },
-                ),
-                const Text('Available Immediately', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
-              ],
-            ),
-            const SizedBox(height: 24),
+
 
             // Location
             _buildLabel('Pickup Location *'),
@@ -627,36 +574,36 @@ class _EditGivePostPageState extends State<EditGivePostPage> {
                 child: const Text('Back', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
               ),
             const Spacer(),
-            ElevatedButton(
-              onPressed: _isPublishing
-                  ? null
-                  : () {
-                      if (_currentStep == 0) {
-                        if (_formKey1.currentState!.validate()) {
-                          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+            _currentStep == 1
+                ? AnimatedFlyingButton(
+                    text: 'Save Changes',
+                    icon: Icons.save_rounded,
+                    isPrimary: true,
+                    onPressed: () {
+                      if ((_formKey2.currentState?.validate() ?? false)) {
+                        if (_availableFrom == null && !_availableImmediately) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an availability date.')));
+                          return;
                         }
-                      } else if (_currentStep == 1) {
-                        if (_formKey2.currentState!.validate()) {
-                          if (_availableFrom == null && !_availableImmediately) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an availability date.')));
-                            return;
-                          }
-                          _publishPost();
-                        }
+                        _publishPost();
                       }
                     },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: _isPublishing
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text(
-                      _currentStep == 0 ? 'Next' : 'Save Changes',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  )
+                : ElevatedButton(
+                    onPressed: () {
+                      if ((_formKey1.currentState?.validate() ?? false)) {
+                        _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                      elevation: 8,
+                      shadowColor: AppColors.primary.withValues(alpha: 0.4),
                     ),
-            ),
+                    child: const Text('Next', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
           ],
         ),
       ),

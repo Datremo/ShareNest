@@ -1,14 +1,15 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../../core/presentation/widgets/liquid_glass_container.dart';
+import '../../../core/presentation/widgets/glassmorphism.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/theme/app_colors.dart';
+import 'package:demo/core/theme/app_colors.dart';
+import 'package:demo/core/presentation/widgets/animated_flying_button.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/repositories/listing_repository.dart';
 
@@ -209,10 +210,12 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         
         elevation: 0,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColors.primaryDark),
           onPressed: () => context.pop(),
@@ -224,23 +227,111 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
           child: LinearProgressIndicator(
-            value: (_currentStep + 1) / 3,
-            backgroundColor: AppColors.grey200,
+            value: (_currentStep + 1) / 4,
+            backgroundColor: Colors.white.withAlpha(128),
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.exchange),
           ),
         ),
       ),
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
-        onPageChanged: (idx) => setState(() => _currentStep = idx),
+      body: Stack(
         children: [
-          _buildStep1(),
-          _buildStep2(),
-          _buildSuccessStep(),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withAlpha(204),
+                    AppColors.exchange.withAlpha(153),
+                    AppColors.exchange.withAlpha(204),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              onPageChanged: (idx) => setState(() => _currentStep = idx),
+              children: [
+                _buildStep1(),
+                _buildStep2(),
+                _buildReviewStep(),
+                _buildSuccessStep(),
+              ],
+            ),
+          ),
         ],
       ),
-      bottomNavigationBar: _currentStep < 2 ? _buildBottomBar() : const SizedBox.shrink(),
+      bottomNavigationBar: _currentStep < 3 ? _buildBottomBar() : const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildReviewStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Review Listing',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Make sure everything looks good.',
+            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 32),
+          
+          GlassCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_pickedImages.isNotEmpty)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: kIsWeb ? Image.network(_pickedImages.first.path, width: 80, height: 80, fit: BoxFit.cover) : Image.file(File(_pickedImages.first.path), width: 80, height: 80, fit: BoxFit.cover),
+                      )
+                    else
+                      Container(
+                        width: 80, height: 80,
+                        decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12)),
+                        child: Icon(Icons.image, color: Colors.grey[400]),
+                      ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_titleController.text, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                          const SizedBox(height: 4),
+                          Text('Exchange • $_selectedCondition', style: const TextStyle(color: AppColors.exchange, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+                const Text('Description', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                const SizedBox(height: 8),
+                Text(_descriptionController.text, style: TextStyle(color: Colors.grey[700], height: 1.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -579,47 +670,44 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
   }
 
   Widget _buildBottomBar() {
+    bool canProceed = false;
+    if (_currentStep == 0) canProceed = _formKey1.currentState?.validate() ?? false;
+    if (_currentStep == 1) canProceed = _formKey2.currentState?.validate() ?? false;
+    if (_currentStep == 2) canProceed = true; // Review step
+
     return SafeArea(
-      child: LiquidGlassContainer(
-        sigma: 15, opacity: 0.7, padding: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Row(
           children: [
             if (_currentStep > 0)
-              TextButton(
-                onPressed: () {
-                  _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                },
-                child: const Text('Back', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
+              Expanded(
+                child: GlassButton(
+                  label: 'Back',
+                  onPressed: () {
+                    _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                  },
+                ),
               ),
-            const Spacer(),
-            ElevatedButton(
-              onPressed: _isPublishing
-                  ? null
-                  : () {
-                      if (_currentStep == 0) {
-                        if (_formKey1.currentState!.validate()) {
-                          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                        }
-                      } else if (_currentStep == 1) {
-                        if (_formKey2.currentState!.validate()) {
-                          if (_availableFrom == null && !_availableImmediately) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an availability date.')));
-                            return;
-                          }
-                          _publishPost();
-                        }
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.exchange,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: _isPublishing
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text(
-                      _currentStep == 0 ? 'Next' : 'Publish',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            if (_currentStep > 0) const SizedBox(width: 16),
+            Expanded(
+              flex: 2,
+              child: _currentStep == 2
+                  ? AnimatedFlyingButton(
+                      text: 'Publish',
+                      isPrimary: true,
+                      onPressed: () {
+                        if (canProceed) _publishPost();
+                      },
+                    )
+                  : GlassButton(
+                      label: 'Next',
+                      isLoading: _isPublishing,
+                      onPressed: canProceed
+                          ? () {
+                              _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                            }
+                          : null,
                     ),
             ),
           ],

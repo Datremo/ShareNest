@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../core/presentation/widgets/animated_checkmark.dart';
 import '../../../core/presentation/widgets/liquid_glass_container.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +9,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/theme/app_colors.dart';
+import 'package:demo/core/theme/app_colors.dart';
+import 'package:demo/core/presentation/widgets/animated_flying_button.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/repositories/listing_repository.dart';
 
@@ -224,7 +226,7 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
           child: LinearProgressIndicator(
-            value: (_currentStep + 1) / 3,
+            value: (_currentStep + 1) / 4,
             backgroundColor: AppColors.grey200,
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.give),
           ),
@@ -237,10 +239,11 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
         children: [
           _buildStep1(),
           _buildStep2(),
+          _buildReviewStep(),
           _buildSuccessStep(),
         ],
       ),
-      bottomNavigationBar: _currentStep < 2 ? _buildBottomBar() : const SizedBox.shrink(),
+      bottomNavigationBar: _currentStep < 3 ? _buildBottomBar() : const SizedBox.shrink(),
     );
   }
 
@@ -400,62 +403,6 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
             ),
             const SizedBox(height: 32),
             
-            // Dates
-            _buildLabel('Available From *'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: _availableImmediately ? null : _selectDate,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.grey200),
-                        borderRadius: BorderRadius.circular(16),
-                        color: _availableImmediately ? AppColors.grey50 : Colors.white,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_month_rounded, color: _availableImmediately ? Colors.grey : AppColors.give),
-                          const SizedBox(width: 12),
-                          Text(
-                            _availableFrom != null
-                                ? DateFormat('MMM d, yyyy').format(_availableFrom!)
-                                : 'Select date',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: _availableFrom != null && !_availableImmediately ? AppColors.primaryDark : Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Checkbox(
-                  value: _availableImmediately,
-                  activeColor: AppColors.give,
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _availableImmediately = val;
-                        if (val) _availableFrom = null;
-                      });
-                    }
-                  },
-                ),
-                const Text('Available Immediately', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
-              ],
-            ),
-            const SizedBox(height: 24),
-
             // Location
             _buildLabel('Pickup Location *'),
             const SizedBox(height: 8),
@@ -541,6 +488,132 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
     );
   }
 
+  Widget _buildReviewStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Review Listing',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Make sure everything looks good.',
+            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 32),
+          
+          LiquidGlassContainer(
+            padding: const EdgeInsets.all(24),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
+            sigma: 10,
+            opacity: 0.6,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_pickedImages.isNotEmpty)
+                  Container(
+                    height: 200,
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      image: DecorationImage(
+                        image: kIsWeb ? NetworkImage(_pickedImages.first.path) as ImageProvider : FileImage(File(_pickedImages.first.path)),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                Text(_titleController.text.isNotEmpty ? _titleController.text : 'Untitled', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_selectedCategory ?? 'No Category', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('Qty: ${_quantityController.text}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(_descriptionController.text.isNotEmpty ? _descriptionController.text : 'No description provided.', style: const TextStyle(fontSize: 16, color: AppColors.textSecondary)),
+                const SizedBox(height: 24),
+                
+                const Divider(color: AppColors.grey200),
+                const SizedBox(height: 16),
+                
+                _buildReviewRow(Icons.calendar_month, 'Availability', 
+                  _availableImmediately ? 'Immediately' : (_availableFrom != null ? 'From ${_availableFrom!.toString().substring(0, 10)}' : 'Not Set')),
+                const SizedBox(height: 12),
+                
+                _buildReviewRow(Icons.location_on, 'Location', _locationController.text.isNotEmpty ? _locationController.text : 'Not set'),
+                const SizedBox(height: 12),
+                _buildReviewRow(Icons.star, 'Condition', _selectedCondition),
+                if (_brandController.text.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildReviewRow(Icons.branding_watermark, 'Brand', _brandController.text),
+                ],
+                
+                if (_tags.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    children: _tags.map((t) => Chip(
+                      label: Text(t, style: const TextStyle(fontSize: 12)), 
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      side: BorderSide.none,
+                    )).toList(),
+                  )
+                ],
+                if (_includedItems.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('Includes:', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    children: _includedItems.map((t) => Chip(
+                      label: Text(t, style: const TextStyle(fontSize: 12)), 
+                      backgroundColor: Colors.grey[200],
+                      side: BorderSide.none,
+                    )).toList(),
+                  )
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppColors.primary, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.primaryDark)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSuccessStep() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -551,7 +624,7 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
             color: AppColors.success.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 80),
+          child: const AnimatedCheckmark(color: AppColors.success, size: 80),
         ),
         const SizedBox(height: 32),
         const Text(
@@ -594,36 +667,39 @@ class _CreateGivePostPageState extends State<CreateGivePostPage> {
                 child: const Text('Back', style: TextStyle(fontSize: 16, color: AppColors.primaryDark)),
               ),
             const Spacer(),
-            ElevatedButton(
-              onPressed: _isPublishing
-                  ? null
-                  : () {
+            _currentStep == 2
+                ? AnimatedFlyingButton(
+                    text: 'Publish',
+                    isPrimary: true,
+                    onPressed: () {
+                      _publishPost();
+                    },
+                  )
+                : ElevatedButton(
+                    onPressed: () {
                       if (_currentStep == 0) {
-                        if (_formKey1.currentState!.validate()) {
+                        if ((_formKey1.currentState?.validate() ?? false)) {
                           _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                         }
                       } else if (_currentStep == 1) {
-                        if (_formKey2.currentState!.validate()) {
+                        if ((_formKey2.currentState?.validate() ?? false)) {
                           if (_availableFrom == null && !_availableImmediately) {
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an availability date.')));
                             return;
                           }
-                          _publishPost();
+                          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                         }
                       }
                     },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.give,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: _isPublishing
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text(
-                      _currentStep == 0 ? 'Next' : 'Publish',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.give,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                      elevation: 8,
+                      shadowColor: AppColors.give.withValues(alpha: 0.4),
                     ),
-            ),
+                    child: const Text('Next', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
           ],
         ),
       ),

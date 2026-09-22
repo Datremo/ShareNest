@@ -8,7 +8,8 @@ import '../../../core/data/repositories/profile_repository.dart';
 import '../../../core/data/models/profile.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final String? userId;
+  const ProfilePage({super.key, this.userId});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -20,6 +21,15 @@ class _ProfilePageState extends State<ProfilePage> {
   Profile? _profile;
   Map<String, int> _stats = {'items': 0, 'requests': 0, 'borrows': 0, 'lends': 0};
 
+  bool get _isMe {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    return widget.userId == null || widget.userId == currentUserId;
+  }
+
+  String get _targetUserId {
+    return widget.userId ?? Supabase.instance.client.auth.currentUser!.id;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -29,10 +39,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
       final futures = await Future.wait([
-        _profileRepo.getProfile(userId),
-        _profileRepo.getProfileStats(userId),
+        _profileRepo.getProfile(_targetUserId),
+        _profileRepo.getProfileStats(_targetUserId),
       ]);
       setState(() {
         _profile = futures[0] as Profile?;
@@ -94,8 +103,10 @@ class _ProfilePageState extends State<ProfilePage> {
                             const SizedBox(height: 24),
                             _buildStatsSummary(),
                             const SizedBox(height: 32),
-                            _buildQuickActions(),
-                            const SizedBox(height: 32),
+                            if (_isMe) ...[
+                              _buildQuickActions(),
+                              const SizedBox(height: 32),
+                            ],
                             _buildSectionHeader('About Me'),
                             const SizedBox(height: 12),
                             _buildBioCard(),
@@ -174,18 +185,19 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
       actions: [
-        PhysicsButton(
-          onTap: () => context.push('/edit_profile').then((_) => _loadData()),
-          child: Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.5),
-              shape: BoxShape.circle,
+        if (_isMe)
+          PhysicsButton(
+            onTap: () => context.push('/edit_profile').then((_) => _loadData()),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.edit, color: AppColors.primaryDark, size: 20),
             ),
-            child: const Icon(Icons.edit, color: AppColors.primaryDark, size: 20),
           ),
-        ),
       ],
     );
   }
@@ -243,57 +255,87 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildQuickActions() {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: PhysicsButton(
-            onTap: () => context.push('/tracking_dashboard'),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, Color(0xFF4A90E2)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        Row(
+          children: [
+            Expanded(
+              child: PhysicsButton(
+                onTap: () => context.push('/tracking_dashboard'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primary, Color(0xFF4A90E2)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5)),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.dashboard_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text('Dashboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    ],
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5)),
-                ],
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.dashboard_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
-                  Text('Dashboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                ],
               ),
             ),
-          ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: PhysicsButton(
+                onTap: () => context.push('/my_posts'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: Colors.orange.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5)),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.list_alt_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text('My Posts', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: PhysicsButton(
-            onTap: () => context.push('/settings'),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5)),
-                ],
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.settings_rounded, color: AppColors.primaryDark, size: 20),
-                  SizedBox(width: 8),
-                  Text('Settings', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 16)),
-                ],
-              ),
+        const SizedBox(height: 16),
+        PhysicsButton(
+          onTap: () => context.push('/settings'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5)),
+              ],
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.settings_rounded, color: AppColors.primaryDark, size: 20),
+                SizedBox(width: 8),
+                Text('Settings', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
             ),
           ),
         ),

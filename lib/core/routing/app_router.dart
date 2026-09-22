@@ -179,6 +179,14 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/user_profile',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final userId = state.uri.queryParameters['userId'];
+        return ProfilePage(userId: userId);
+      },
+    ),
+    GoRoute(
       path: '/borrow_hub',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const BorrowHubPage(),
@@ -262,7 +270,7 @@ final GoRouter appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
         final listing = state.extra as Listing;
-        return const RequestExchangePage();
+        return RequestExchangePage(listing: listing);
       },
     ),
     GoRoute(
@@ -270,7 +278,7 @@ final GoRouter appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
         final listing = state.extra as Listing;
-        return const OwnerRequestsListPage();
+        return OwnerRequestsListPage(listing: listing);
       },
     ),
     GoRoute(

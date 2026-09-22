@@ -17,7 +17,7 @@ class AppColors {
 
   // Status/Category Colors
   static const Color borrow = Color(0xFF4CAF50); // Green
-  static const Color give = Color(0xFFE91E63); // Pink
+  static const Color give = Color(0xFFFF5722); // Deep Orange
   static const Color exchange = Color(0xFF2196F3); // Blue
   static const Color urgent = Color(0xFF9B2226); // Red
   static const Color success = Color(0xFF4CAF50);

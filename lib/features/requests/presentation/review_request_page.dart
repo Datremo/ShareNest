@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'dart:ui';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/models/item_request.dart';
 import '../../../core/data/repositories/request_repository.dart';
+import 'widgets/animated_send_icon.dart';
 
 class ReviewRequestPage extends StatefulWidget {
   final Listing listing;
@@ -88,29 +91,59 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
     }
   }
 
-  Widget _buildSummaryRow(IconData icon, String label, String value) {
+  Widget _buildGlassCard({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 24,
+                spreadRadius: -5,
+                offset: const Offset(0, 10),
+              )
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataRow(String label, String value, {bool isHighlight = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 24),
-          ),
-          const SizedBox(width: 20),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                const SizedBox(height: 6),
-                Text(value, style: const TextStyle(color: AppColors.primaryDark, fontSize: 16, fontWeight: FontWeight.w800, height: 1.4)),
-              ],
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: isHighlight ? AppColors.primary : AppColors.primaryDark,
+                fontSize: 15,
+                fontWeight: isHighlight ? FontWeight.w800 : FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -120,35 +153,52 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    final mode = widget.listing.mode == 'LEND' ? 'Borrow' : widget.listing.mode;
-
+    final mode = widget.listing.mode;
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF2F4F7), // Light gray background for contrast with glass cards
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primaryDark, size: 20),
+          icon: const Icon(CupertinoIcons.back, color: AppColors.primaryDark),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Review Order', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w900)),
+        title: const Text('Review Order', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
       ),
       body: Stack(
         children: [
+          // Background design elements
+          Positioned(
+            top: -100, right: -50,
+            child: Container(
+              width: 300, height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.15),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 50, left: -100,
+            child: Container(
+              width: 250, height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.blueAccent.withValues(alpha: 0.1),
+              ),
+            ),
+          ),
+
+          // Main content
           SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Item Header
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
-                  ),
+                // Item Summary Card
+                _buildGlassCard(
                   child: Row(
                     children: [
                       Hero(
@@ -157,7 +207,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                           borderRadius: BorderRadius.circular(16),
                           child: widget.listing.photoUrls.isNotEmpty
                               ? Image.network(widget.listing.photoUrls.first, width: 80, height: 80, fit: BoxFit.cover)
-                              : Container(width: 80, height: 80, color: Colors.grey[100], child: const Icon(Icons.image, color: Colors.grey)),
+                              : Container(width: 80, height: 80, color: Colors.grey[200], child: const Icon(Icons.image, color: Colors.grey)),
                         ),
                       ),
                       const SizedBox(width: 20),
@@ -168,44 +218,69 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.15),
+                                color: AppColors.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(mode.toUpperCase(), style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
                             ),
                             const SizedBox(height: 8),
                             Text(widget.listing.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+                            const SizedBox(height: 4),
+                            Text(widget.listing.locationName ?? 'Location not specified', style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600)),
                           ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 40),
-                const Text('Order Details', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
                 const SizedBox(height: 24),
                 
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
-                  ),
+                const Text('Order Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.5)),
+                const SizedBox(height: 16),
+                
+                // Details Table Card
+                _buildGlassCard(
                   child: Column(
                     children: [
-                      if (widget.startDate != null && widget.endDate != null)
-                        _buildSummaryRow(Icons.calendar_month_rounded, 'BORROW PERIOD', '${DateFormat('MMM d').format(widget.startDate!)} - ${DateFormat('MMM d').format(widget.endDate!)}'),
+                      _buildDataRow('Transaction Type', mode.toUpperCase()),
+                      const Divider(height: 24, thickness: 1, color: Colors.black12),
                       
-                      if (widget.pickupTime != null)
-                        _buildSummaryRow(Icons.access_time_filled_rounded, 'EXPECTED PICKUP', DateFormat('MMM d, yyyy • h:mm a').format(widget.pickupTime!)),
+                      if (widget.startDate != null && widget.endDate != null) ...[
+                        _buildDataRow('Duration', '${widget.endDate!.difference(widget.startDate!).inDays} days', isHighlight: true),
+                        const Divider(height: 24, thickness: 1, color: Colors.black12),
+                        _buildDataRow('Borrow Start', DateFormat('MMM d, yyyy').format(widget.startDate!)),
+                        const Divider(height: 24, thickness: 1, color: Colors.black12),
+                        _buildDataRow('Expected Return', DateFormat('MMM d, yyyy').format(widget.endDate!)),
+                        const Divider(height: 24, thickness: 1, color: Colors.black12),
+                      ],
                       
-                      if (widget.message.isNotEmpty)
-                        _buildSummaryRow(Icons.chat_bubble_rounded, 'MESSAGE TO OWNER', '"${widget.message}"'),
+                      if (widget.pickupTime != null) ...[
+                        _buildDataRow('Handover Time', DateFormat('MMM d, yyyy • h:mm a').format(widget.pickupTime!), isHighlight: true),
+                      ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 120), // spacing for bottom button
+                
+                if (widget.message.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Text('Your Message', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.5)),
+                  const SizedBox(height: 16),
+                  _buildGlassCard(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.format_quote_rounded, color: AppColors.primary, size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            widget.message,
+                            style: const TextStyle(fontSize: 15, color: AppColors.primaryDark, height: 1.5, fontWeight: FontWeight.w500, fontStyle: FontStyle.italic),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -216,16 +291,15 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
             child: Container(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FA),
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFFF8F9FA).withOpacity(0),
-                    const Color(0xFFF8F9FA),
-                    const Color(0xFFF8F9FA),
+                    const Color(0xFFF2F4F7).withValues(alpha: 0),
+                    const Color(0xFFF2F4F7),
+                    const Color(0xFFF2F4F7),
                   ],
-                  stops: const [0.0, 0.2, 1.0],
+                  stops: const [0.0, 0.4, 1.0],
                 ),
               ),
               child: GestureDetector(
@@ -237,7 +311,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                     color: _isSubmitting ? AppColors.primaryDark : AppColors.primary,
                     borderRadius: BorderRadius.circular(32),
                     boxShadow: _isSubmitting ? [] : [
-                      BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
+                      BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10)),
                     ],
                   ),
                   child: Stack(
@@ -259,10 +333,8 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                         AnimatedBuilder(
                           animation: _flyAnimation,
                           builder: (context, child) {
-                            // Fly up and right
                             final dx = _flyAnimation.value * 300;
                             final dy = -_flyAnimation.value * 200;
-                            // Fade out as it flies
                             final opacity = (1 - _flyAnimation.value).clamp(0.0, 1.0);
                             
                             return Transform.translate(
@@ -270,7 +342,7 @@ class _ReviewRequestPageState extends State<ReviewRequestPage> with SingleTicker
                               child: Opacity(
                                 opacity: opacity,
                                 child: Transform.rotate(
-                                  angle: -_flyAnimation.value * 0.5, // tilt upwards
+                                  angle: -_flyAnimation.value * 0.5,
                                   child: const Icon(Icons.send_rounded, color: Colors.white, size: 28),
                                 ),
                               ),

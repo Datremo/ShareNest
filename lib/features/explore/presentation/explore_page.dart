@@ -546,7 +546,7 @@ class _FiltersFullScreenState extends State<_FiltersFullScreen> {
                 activeTrackColor: AppColors.primary,
                 inactiveTrackColor: AppColors.grey200,
                 thumbColor: AppColors.primary,
-                overlayColor: AppColors.primary.withOpacity(0.2),
+                overlayColor: AppColors.primary.withValues(alpha: 0.2),
               ),
               child: Slider(
                 value: 5,

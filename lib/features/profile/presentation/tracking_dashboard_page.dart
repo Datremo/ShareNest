@@ -88,7 +88,7 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : Stack(
               children: [
-                // Glowing Background Orbs for 2030s feel
+                // Glowing Background Orbs
                 Positioned(
                   top: 100, right: -50,
                   child: Container(
@@ -111,27 +111,42 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
                     ),
                   ),
                 ),
-                // Main Content
-                Column(
-                  children: [
-                    const SizedBox(height: 100), // Appbar spacing
-                    _buildAnimatedKPIs(),
-                    const SizedBox(height: 24),
-                    _buildPillTabs(),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        physics: const BouncingScrollPhysics(),
-                        children: [
-                          _buildActiveLends(), // Sharing
-                          _buildActiveBorrows(), // Borrowing
-                          _buildPendingRequests(), // Pending
-                          _buildHistory(), // Completed
-                        ],
+                NestedScrollView(
+                  headerSliverBuilder: (context, innerBoxIsScrolled) {
+                    return [
+                      SliverToBoxAdapter(
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 100), // Appbar spacing
+                            _buildAnimatedKPIs(),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _SliverAppBarDelegate(
+                          minHeight: 70.0,
+                          maxHeight: 70.0,
+                          child: Container(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            alignment: Alignment.center,
+                            child: _buildPillTabs(),
+                          ),
+                        ),
+                      ),
+                    ];
+                  },
+                  body: TabBarView(
+                    controller: _tabController,
+                    physics: const BouncingScrollPhysics(),
+                    children: [
+                      _buildActiveLends(),
+                      _buildActiveBorrows(),
+                      _buildPendingRequests(),
+                      _buildHistory(),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -568,5 +583,35 @@ class _FuturisticKPICardState extends State<_FuturisticKPICard> with SingleTicke
         );
       },
     );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }

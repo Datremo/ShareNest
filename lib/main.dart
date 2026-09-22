@@ -32,7 +32,7 @@ class NeighborShareApp extends StatelessWidget {
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: const TextScaler.linear(0.95),
+            textScaler: const TextScaler.linear(0.85),
           ),
           child: AnimatedLiquidBackground(
             child: child!,

@@ -119,7 +119,7 @@ class ItemReceivedPage extends StatelessWidget {
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                     ),
-                    onPressed: () => context.go('/'),
+                    onPressed: () => context.go('/home'),
                     child: const Text('Back to Home', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
                 ),

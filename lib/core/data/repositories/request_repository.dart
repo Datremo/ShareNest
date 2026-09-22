@@ -40,6 +40,16 @@ class RequestRepository {
     );
   }
 
+  
+  Future<List<Map<String, dynamic>>> getRequestsForListing(String listingId) async {
+    final requests = await _client
+        .from('item_requests')
+        .select('*, profiles!item_requests_requester_id_fkey(*)')
+        .eq('listing_id', listingId)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(requests);
+  }
+
   Future<List<Map<String, dynamic>>> getIncomingRequestsWithListings() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return [];

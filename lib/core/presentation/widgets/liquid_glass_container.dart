@@ -29,7 +29,7 @@ class LiquidGlassContainer extends StatelessWidget {
       margin: margin,
       decoration: BoxDecoration(
         borderRadius: borderRadius ?? BorderRadius.circular(16),
-        border: border ?? Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+        border: border ?? Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
       ),
       child: ClipRRect(
         borderRadius: borderRadius ?? BorderRadius.circular(16),
@@ -38,7 +38,7 @@ class LiquidGlassContainer extends StatelessWidget {
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: color ?? Colors.white.withOpacity(opacity),
+              color: color ?? Colors.white.withValues(alpha: opacity),
             ),
             child: child,
           ),

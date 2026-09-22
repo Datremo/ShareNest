@@ -1,4 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../../core/presentation/widgets/animated_checkmark.dart';
+import '../../../core/presentation/widgets/glassmorphism.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
@@ -103,7 +106,8 @@ class _RequestFreeItemPageState extends State<RequestFreeItemPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -113,7 +117,32 @@ class _RequestFreeItemPageState extends State<RequestFreeItemPage> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
+          Positioned.fill(
+            child: Image.network(
+              widget.listing.photoUrls.isNotEmpty
+                  ? widget.listing.photoUrls.first
+                  : '',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withAlpha(204),
+                    AppColors.primaryLight.withAlpha(153),
+                    AppColors.primaryLight.withAlpha(204),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,9 +202,21 @@ class _RequestFreeItemPageState extends State<RequestFreeItemPage> {
                     controller: _messageController,
                     maxLines: 4,
                     decoration: InputDecoration(
-                      hintText: 'e.g. Hi! I can come by tomorrow afternoon...',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                      hintText: 'Add a message (optional)...',
+                      filled: true,
+                      fillColor: Colors.white.withAlpha(178),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.white.withAlpha(229), width: 1.5),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.white.withAlpha(229), width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                      ),
                       contentPadding: const EdgeInsets.all(20),
                     ),
                   ),
@@ -185,44 +226,24 @@ class _RequestFreeItemPageState extends State<RequestFreeItemPage> {
               ],
             ),
           ),
-          
-          // Review Button
-          Positioned(
-            bottom: 0, left: 0, right: 0,
+        ), // Close SafeArea
+        Positioned(
+          bottom: 0, left: 0, right: 0,
+          child: SafeArea(
+            top: false,
             child: Container(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                  colors: [const Color(0xFFF4F6F9).withOpacity(0), const Color(0xFFF4F6F9), const Color(0xFFF4F6F9)],
-                  stops: const [0.0, 0.2, 1.0],
-                ),
-              ),
-              child: GestureDetector(
-                onTap: _goToReview,
-                child: Container(
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Review Request', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 18),
-                    ],
-                  ),
-                ),
+              child: GlassButton(
+                label: 'Review Request',
+                onPressed: _goToReview,
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildDateSelector({required String title, required IconData icon, required DateTime dateTime, required VoidCallback onTap}) {
     return InkWell(

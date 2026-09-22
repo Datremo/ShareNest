@@ -62,9 +62,14 @@ class _AnimatedLiquidBackgroundState extends State<AnimatedLiquidBackground> wit
             height: 300,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFFD0BCFF).withOpacity(0.3),
+              gradient: RadialGradient(
+                colors: [
+                  const Color(0xFFD0BCFF).withValues(alpha: 0.3),
+                  const Color(0xFFD0BCFF).withValues(alpha: 0.0),
+                ],
+              ),
             ),
-          ).blurred(sigma: 80),
+          ),
         ),
         Positioned(
           bottom: -50,
@@ -74,9 +79,14 @@ class _AnimatedLiquidBackgroundState extends State<AnimatedLiquidBackground> wit
             height: 250,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF82B1FF).withOpacity(0.3),
+              gradient: RadialGradient(
+                colors: [
+                  const Color(0xFF82B1FF).withValues(alpha: 0.3),
+                  const Color(0xFF82B1FF).withValues(alpha: 0.0),
+                ],
+              ),
             ),
-          ).blurred(sigma: 80),
+          ),
         ),
         widget.child,
       ],
@@ -99,12 +109,12 @@ class GlassCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

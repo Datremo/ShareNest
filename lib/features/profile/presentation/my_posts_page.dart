@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/data/models/listing.dart';
+import '../../../core/data/repositories/listing_repository.dart';
+import '../../../core/presentation/widgets/liquid_glass_widgets.dart';
 
 class MyPostsPage extends StatefulWidget {
   const MyPostsPage({super.key});
@@ -10,14 +14,48 @@ class MyPostsPage extends StatefulWidget {
 }
 
 class _MyPostsPageState extends State<MyPostsPage> {
-  String _selectedFilter = 'All (8)';
+  final ListingRepository _listingRepo = ListingRepository();
+  List<Listing> _allListings = [];
+  bool _isLoading = true;
+  String _selectedFilter = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchListings();
+  }
+
+  Future<void> _fetchListings() async {
+    setState(() => _isLoading = true);
+    try {
+      final listings = await _listingRepo.getUserListings();
+      if (mounted) {
+        setState(() {
+          _allListings = listings;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load posts: $e')),
+        );
+      }
+    }
+  }
+
+  List<Listing> get _filteredListings {
+    if (_selectedFilter == 'All') return _allListings;
+    return _allListings.where((l) => l.mode.toUpperCase() == _selectedFilter.toUpperCase()).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.primaryDark),
@@ -25,88 +63,73 @@ class _MyPostsPageState extends State<MyPostsPage> {
         ),
         title: const Text('My Posts', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.add, color: Colors.white, size: 20),
-            ),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
         children: [
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildFilterChips(),
+          // Background
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white,
+                    AppColors.primaryLight.withValues(alpha: 0.3),
+                    AppColors.primaryLight.withValues(alpha: 0.1),
+                  ],
+                ),
+              ),
+            ),
           ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Active Posts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
-                const SizedBox(height: 12),
-                _buildActivePostCard(
-                  title: 'Books (Assorted)',
-                  image: 'books.jpg',
-                  type: 'Give',
-                  typeColor: AppColors.error, // Red for give
-                  views: '34 views',
-                  requests: '6 requests',
-                  postedTime: 'Posted 2 days ago',
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: _buildFilterChips(),
                 ),
-                const SizedBox(height: 12),
-                _buildActivePostCard(
-                  title: 'Cordless Drill',
-                  image: 'drill.jpg',
-                  type: 'Lend',
-                  typeColor: AppColors.success, // Green for lend
-                  views: '28 views',
-                  requests: '4 requests',
-                  postedTime: 'Posted 5 days ago',
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                      : _filteredListings.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No posts found.',
+                                style: TextStyle(color: AppColors.primaryDark.withValues(alpha: 0.5), fontSize: 16),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              itemCount: _filteredListings.length,
+                              itemBuilder: (context, index) {
+                                final listing = _filteredListings[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: _buildListingCard(listing),
+                                );
+                              },
+                            ),
                 ),
-                const SizedBox(height: 12),
-                _buildActivePostCard(
-                  title: 'Office Chair',
-                  image: 'office_chair.jpg',
-                  type: 'Give',
-                  typeColor: AppColors.error,
-                  views: '41 views',
-                  requests: '8 requests',
-                  postedTime: 'Posted 1 week ago',
-                ),
-                const SizedBox(height: 12),
-                _buildActivePostCard(
-                  title: 'Yoga Mat',
-                  image: 'yoga_mat.jpg',
-                  type: 'Lend',
-                  typeColor: AppColors.success,
-                  views: '19 views',
-                  requests: '3 requests',
-                  postedTime: 'Posted 1 week ago',
-                ),
-                const SizedBox(height: 24),
-                const Text('Inactive Posts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
-                const SizedBox(height: 12),
-                _buildInactivePostCard(),
               ],
             ),
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        onPressed: () {
+          // You could show a bottom sheet here to select which type to create
+          context.push('/create_lend_post');
+        },
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 
   Widget _buildFilterChips() {
-    final filters = ['All (8)', 'Lending (4)', 'Giving (2)', 'Exchange (2)'];
+    final filters = ['All', 'Lend', 'Give', 'Exchange'];
     return SizedBox(
       height: 36,
       child: ListView(
@@ -118,19 +141,23 @@ class _MyPostsPageState extends State<MyPostsPage> {
             padding: const EdgeInsets.only(right: 8.0),
             child: GestureDetector(
               onTap: () => setState(() => _selectedFilter = f),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.white,
+                  color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: isSelected ? AppColors.primary : Colors.grey[300]!),
+                  boxShadow: isSelected
+                      ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+                      : [],
                 ),
                 child: Text(
                   f,
                   style: TextStyle(
                     color: isSelected ? Colors.white : AppColors.primaryDark,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -141,146 +168,131 @@ class _MyPostsPageState extends State<MyPostsPage> {
     );
   }
 
-  Widget _buildActivePostCard({
-    required String title,
-    required String image,
-    required String type,
-    required Color typeColor,
-    required String views,
-    required String requests,
-    required String postedTime,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset('assets/images/$image', width: 64, height: 64, fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 64, height: 64, color: Colors.grey[300],
-                child: const Icon(Icons.image, color: Colors.grey),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryDark)),
-                    const Icon(Icons.more_vert, size: 16, color: AppColors.primaryDark),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(type == 'Give' ? Icons.favorite_border : Icons.handshake_outlined, size: 12, color: typeColor),
-                    const SizedBox(width: 4),
-                    Text(type, style: TextStyle(color: typeColor, fontSize: 12, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.visibility_outlined, size: 12, color: AppColors.primary),
-                    const SizedBox(width: 4),
-                    Text(views, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                    const SizedBox(width: 12),
-                    Container(
-                      width: 1, height: 10, color: Colors.grey[400],
-                    ),
-                    const SizedBox(width: 12),
-                    Text(requests, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(postedTime, style: TextStyle(fontSize: 10, color: Colors.blueGrey[400])),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildListingCard(Listing listing) {
+    Color badgeColor;
+    switch (listing.mode.toUpperCase()) {
+      case 'LEND':
+        badgeColor = AppColors.success;
+        break;
+      case 'GIVE':
+        badgeColor = AppColors.error;
+        break;
+      case 'EXCHANGE':
+        badgeColor = AppColors.warning;
+        break;
+      default:
+        badgeColor = AppColors.primary;
+    }
 
-  Widget _buildInactivePostCard() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50], // Faded background
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Opacity(
-            opacity: 0.6,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset('assets/images/table_lamp.jpg', width: 64, height: 64, fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 64, height: 64, color: Colors.grey[300],
-                  child: const Icon(Icons.image, color: Colors.grey),
-                ),
+    final hasImage = listing.photoUrls.isNotEmpty;
+    final imageUrl = hasImage ? listing.photoUrls.first : null;
+
+    return GestureDetector(
+      onTap: () async {
+        await context.push('/item', extra: listing);
+        _fetchListings(); // Refresh if edited/deleted
+      },
+      child: GlassCard(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: AppColors.primaryLight.withValues(alpha: 0.2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: hasImage
+                    ? Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
+                    : const Icon(Icons.image, color: AppColors.primary, size: 40),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Table Lamp', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryDark)),
-                    const Icon(Icons.more_vert, size: 16, color: AppColors.primaryDark),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+            const SizedBox(width: 16),
+            // Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.check, size: 10, color: Colors.blue),
-                      const SizedBox(width: 4),
-                      const Text('Completed', style: TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
+                        ),
+                        child: Text(
+                          listing.mode.toUpperCase(),
+                          style: TextStyle(
+                            color: badgeColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: listing.status == 'ACTIVE' ? AppColors.success.withValues(alpha: 0.1) : AppColors.grey200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          listing.status,
+                          style: TextStyle(
+                            color: listing.status == 'ACTIVE' ? AppColors.success : Colors.grey[600],
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text('Given to Neha Patil', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                const SizedBox(height: 2),
-                Text('Completed on 10 Sep 2025', style: TextStyle(fontSize: 10, color: Colors.blueGrey[400])),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    listing.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDark,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Created: ${DateFormat('MMM d, yyyy').format(listing.createdAt ?? DateTime.now())}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          listing.locationName ?? 'No location',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
