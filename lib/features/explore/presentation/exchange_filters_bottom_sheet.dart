@@ -119,7 +119,7 @@ class _ExchangeFiltersBottomSheetState extends State<ExchangeFiltersBottomSheet>
                     children: [
                       const Text('Verified users only', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
                       CupertinoSwitch(
-                        activeColor: AppColors.exchange,
+                        activeTrackColor: AppColors.exchange,
                         value: _verifiedOnly,
                         onChanged: (v) => setState(() => _verifiedOnly = v),
                       ),

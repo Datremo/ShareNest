@@ -1,7 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/cupertino.dart';
-import 'dart:ui';
 import '../theme/app_colors.dart';
 import 'radial_share_menu.dart';
 import '../data/repositories/notification_repository.dart';
@@ -60,7 +60,9 @@ class _MainScaffoldState extends State<MainScaffold>
 
   void _showNotificationToast(Map<String, dynamic> notif) {
     if (!mounted) return;
-    OverlayEntry overlayEntry = OverlayEntry(
+    bool removed = false;
+    late OverlayEntry overlayEntry;
+    overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         top: MediaQuery.of(context).padding.top + 10,
         left: 16,
@@ -79,6 +81,11 @@ class _MainScaffoldState extends State<MainScaffold>
             },
             child: GestureDetector(
               onTap: () {
+                if (!removed) {
+                  removed = true;
+                  overlayEntry.remove();
+                }
+                _notificationRepo.markAsRead(notif['id']);
                 widget.navigationShell.goBranch(2);
               },
               child: Container(
@@ -135,7 +142,10 @@ class _MainScaffoldState extends State<MainScaffold>
 
     Overlay.of(context).insert(overlayEntry);
     Future.delayed(const Duration(seconds: 4), () {
-      overlayEntry.remove();
+      if (!removed) {
+        removed = true;
+        overlayEntry.remove();
+      }
     });
   }
 

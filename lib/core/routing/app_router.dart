@@ -14,8 +14,11 @@ import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/reset_password_otp_screen.dart';
 import '../../features/profile/presentation/edit_profile_page.dart';
+import '../../features/requests/presentation/urgent_request_detail_page.dart';
 import '../../features/home/presentation/home_page.dart';
-import '../../features/home/presentation/urgent_request_page.dart';
+import '../../features/requests/presentation/create_urgent_request_page.dart';
+import '../../features/requests/presentation/live_radar_dashboard.dart';
+import '../../features/requests/presentation/my_sos_signals_page.dart';
 import '../../features/explore/presentation/explore_page.dart';
 import '../../features/activity/presentation/activity_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
@@ -138,12 +141,23 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const PostPublishedPage(),
     ),
     GoRoute(
-      path: '/urgent_request',
+      path: '/create_urgent_request',
       parentNavigatorKey: _rootNavigatorKey,
       pageBuilder: (context, state) => SpringBottomUpTransitionPage(
         key: state.pageKey,
-        child: const UrgentRequestPage(),
+        child: const CreateUrgentRequestPage(),
       ),
+    ),
+    GoRoute(
+      path: '/urgent_request_detail/:id',
+      parentNavigatorKey: _rootNavigatorKey,
+      pageBuilder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return SpringBottomUpTransitionPage(
+          key: state.pageKey,
+          child: UrgentRequestDetailPage(requestId: id),
+        );
+      },
     ),
 
     GoRoute(
@@ -179,6 +193,16 @@ final GoRouter appRouter = GoRouter(
       path: '/live_requests',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const LiveRequestsPage(),
+    ),
+    GoRoute(
+      path: '/live_radar',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const LiveRadarDashboardPage(),
+    ),
+    GoRoute(
+      path: '/my_sos_signals',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const MySosSignalsPage(),
     ),
     GoRoute(
       path: '/my_requests',

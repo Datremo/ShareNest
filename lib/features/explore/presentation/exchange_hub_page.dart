@@ -14,17 +14,30 @@ class ExchangeHubPage extends StatefulWidget {
 }
 
 class _ExchangeHubPageState extends State<ExchangeHubPage> {
+  Map<String, dynamic>? _activeFilters;
   final _listingRepo = ListingRepository();
   String _selectedFilter = 'All';
   bool _isListView = true;
+  late Future<List<Listing>> _exchangeFuture;
 
-  void _showFilters() {
-    showModalBottomSheet(
+  @override
+  void initState() {
+    super.initState();
+    _exchangeFuture = _listingRepo.getListingsByMode('EXCHANGE');
+  }
+
+  Future<void> _showFilters() async {
+    final filters = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const ExchangeFiltersBottomSheet(),
     );
+    if (filters != null) {
+      setState(() {
+        _activeFilters = filters;
+      });
+    }
   }
 
   @override
@@ -56,8 +69,8 @@ class _ExchangeHubPageState extends State<ExchangeHubPage> {
               height: 350,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.exchange.withOpacity(0.15),
-                boxShadow: [BoxShadow(blurRadius: 150, color: AppColors.exchange.withOpacity(0.2))],
+                color: AppColors.exchange.withValues(alpha: 0.15),
+                boxShadow: [BoxShadow(blurRadius: 150, color: AppColors.exchange.withValues(alpha: 0.2))],
               ),
             ),
           ),
@@ -69,15 +82,17 @@ class _ExchangeHubPageState extends State<ExchangeHubPage> {
               height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.1),
-                boxShadow: [BoxShadow(blurRadius: 120, color: AppColors.primary.withOpacity(0.2))],
+                color: AppColors.primary.withValues(alpha: 0.1),
+                boxShadow: [BoxShadow(blurRadius: 120, color: AppColors.primary.withValues(alpha: 0.2))],
               ),
             ),
           ),
           RefreshIndicator(
 
         onRefresh: () async {
-          setState(() {});
+          setState(() {
+            _exchangeFuture = _listingRepo.getListingsByMode('EXCHANGE');
+          });
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -130,7 +145,7 @@ class _ExchangeHubPageState extends State<ExchangeHubPage> {
             Padding(
               padding: const EdgeInsets.all(20),
               child: FutureBuilder<List<Listing>>(
-                future: _listingRepo.getListingsByMode('EXCHANGE'),
+                future: _exchangeFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Padding(

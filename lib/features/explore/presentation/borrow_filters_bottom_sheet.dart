@@ -118,7 +118,7 @@ class _BorrowFiltersBottomSheetState extends State<BorrowFiltersBottomSheet> {
                       ),
                       CupertinoSwitch(
                         value: _verifiedOnly,
-                        activeColor: AppColors.primary,
+                        activeTrackColor: AppColors.primary,
                         onChanged: (v) => setState(() => _verifiedOnly = v),
                       ),
                     ],

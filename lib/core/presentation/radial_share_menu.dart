@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:math' as math;
 import '../theme/app_colors.dart';
@@ -40,21 +40,21 @@ class RadialShareMenu extends StatelessWidget {
 
             _buildActionItem(
               context,
-              angle: -math.pi / 2, // Top (Lend)
-              distance: 145,
+              angle: -math.pi / 2 - (math.pi / 3.5), // Top Left (Lend)
+              distance: 135,
               icon: Icons.eco, // Leaf/Lend icon approximation
               label: 'Lend',
               color: AppColors.borrow, // Green
-              flowType: 'lend',
+              route: '/create_post?type=lend',
             ),
             _buildActionItem(
               context,
-              angle: -math.pi / 2 - (math.pi / 3.5), // Top Left (Exchange)
-              distance: 135,
-              icon: Icons.swap_horiz,
-              label: 'Exchange',
-              color: AppColors.exchange, // Blue
-              flowType: 'exchange',
+              angle: -math.pi / 2, // Top (Need It Now)
+              distance: 145,
+              icon: Icons.bolt_rounded,
+              label: 'Need It Now',
+              color: const Color(0xFFE53935), // Red
+              route: '/create_urgent_request',
             ),
             _buildActionItem(
               context,
@@ -62,8 +62,8 @@ class RadialShareMenu extends StatelessWidget {
               distance: 135,
               icon: Icons.card_giftcard,
               label: 'Give',
-              color: AppColors.give, // Pink
-              flowType: 'give',
+              color: AppColors.give, // Pink/Orange
+              route: '/create_post?type=give',
             ),
           ],
         );
@@ -78,7 +78,7 @@ class RadialShareMenu extends StatelessWidget {
     required IconData icon,
     required String label,
     required Color color,
-    required String flowType,
+    required String route,
   }) {
     final centerX = MediaQuery.of(context).size.width / 2;
     // Base Y is the FAB's center Y. Bottom is 36, FAB is 56, so center is bottom + 28 = 64 from bottom.
@@ -128,7 +128,7 @@ class RadialShareMenu extends StatelessWidget {
                   icon: Icon(icon, color: color, size: 30),
                   onPressed: () {
                     onClose();
-                    GoRouter.of(context).push('/create_post?type=$flowType');
+                    GoRouter.of(context).push(route);
                   },
                 ),
               ),

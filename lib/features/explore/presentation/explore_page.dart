@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'filters_bottom_sheet.dart';
+
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -7,6 +9,7 @@ import '../../../core/data/repositories/profile_repository.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/models/profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -16,6 +19,7 @@ class ExplorePage extends StatefulWidget {
 }
 
 class _ExplorePageState extends State<ExplorePage> {
+  Map<String, dynamic>? _activeFilters;
   final _listingRepo = ListingRepository();
   final _profileRepo = ProfileRepository();
   
@@ -23,10 +27,39 @@ class _ExplorePageState extends State<ExplorePage> {
   String? _selectedCategory;
   Profile? _profile;
 
+  late Future<List<Listing>> _activeListingsFuture;
+  RealtimeChannel? _listingsChannel;
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _fetchListings();
+    
+    // Listen for real-time changes to refresh the future automatically
+    _listingsChannel = Supabase.instance.client.channel('public:listings_explore');
+    _listingsChannel!.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'listings',
+      callback: (payload) {
+        if (mounted) {
+          setState(() {
+            _fetchListings();
+          });
+        }
+      },
+    ).subscribe();
+  }
+
+  void _fetchListings() {
+    _activeListingsFuture = _listingRepo.getActiveListings();
+  }
+
+  @override
+  void dispose() {
+    _listingsChannel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> _loadProfile() async {
@@ -48,6 +81,25 @@ class _ExplorePageState extends State<ExplorePage> {
     {'name': 'Outdoors', 'icon': Icons.park, 'id': 'camping_outdoors', 'color': Colors.teal[300]},
     {'name': 'Kitchen', 'icon': Icons.cake, 'id': 'kitchen_party', 'color': Colors.pink[300]},
   ];
+
+  Future<void> _showFilters() async {
+    final filters = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const FiltersBottomSheet(),
+    );
+    if (filters != null) {
+      setState(() {
+        _activeFilters = filters;
+        if (filters['category'] != null && filters['category'] != 'All') {
+          _selectedCategory = filters['category'];
+        } else {
+          _selectedCategory = null;
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,8 +277,67 @@ class _ExplorePageState extends State<ExplorePage> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: GestureDetector(
-                        onTap: () => context.push('/search_results?mode='),
+                      child: 
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 15, offset: const Offset(0, 5))],
+                          ),
+                          child: TypeAheadField<Listing>(
+                            builder: (context, controller, focusNode) {
+                              return TextField(
+                                controller: controller,
+                                focusNode: focusNode,
+                                decoration: InputDecoration(
+                                  hintText: 'Search for items...',
+                                  hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500),
+                                  prefixIcon: const Icon(CupertinoIcons.search, color: AppColors.primaryDark, size: 20),
+                                  suffixIcon: IconButton(
+                                    icon: const Icon(Icons.arrow_forward, color: AppColors.primaryDark),
+                                    onPressed: () {
+                                      context.push('/search_results?mode=&query=${controller.text}');
+                                    }
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                ),
+                              );
+                            },
+                            suggestionsCallback: (pattern) async {
+                              if (pattern.isEmpty) return [];
+                              return await _listingRepo.searchListings(pattern);
+                            },
+                            itemBuilder: (context, Listing item) {
+                              return Card(
+                                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                elevation: 0,
+                                color: Colors.grey[50],
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                child: ListTile(
+                                  leading: item.photoUrls.isNotEmpty 
+                                      ? ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item.photoUrls.first, width: 50, height: 50, fit: BoxFit.cover)) 
+                                      : const Icon(Icons.image, size: 40, color: Colors.grey),
+                                  title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryDark)),
+                                  subtitle: Text(item.mode == 'GIVE' ? 'Free' : item.mode == 'LEND' ? 'Borrow' : 'Exchange', style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                                ),
+                              );
+                            },
+                            onSelected: (Listing item) {
+                              context.push('/item', extra: item);
+                            },
+                            emptyBuilder: (context) => const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Text('No items found', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                            ),
+                          ),
+                        )
+,
+                    ),
+                    const SizedBox(width: 12),
+                    
+                      GestureDetector(
+                        onTap: () => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => const FiltersBottomSheet()),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           decoration: BoxDecoration(
@@ -234,33 +345,16 @@ class _ExplorePageState extends State<ExplorePage> {
                             borderRadius: BorderRadius.circular(30),
                             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 15, offset: const Offset(0, 5))],
                           ),
-                          child: Row(
+                          child: const Row(
                             children: [
-                              const Icon(CupertinoIcons.search, color: AppColors.primaryDark, size: 20),
-                              const SizedBox(width: 12),
-                              Expanded(child: Text('Search for items, people...', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500))),
-                              Icon(Icons.mic_none, color: Colors.grey[500], size: 20),
+                              Icon(Icons.tune, color: AppColors.primaryDark, size: 20),
+                              SizedBox(width: 8),
+                              Text('Filters', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark, fontSize: 14)),
                             ],
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 15, offset: const Offset(0, 5))],
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.tune, color: AppColors.primaryDark, size: 20),
-                          SizedBox(width: 8),
-                          Text('Filters', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark, fontSize: 14)),
-                        ],
-                      ),
-                    ),
+                      )
+,
                   ],
                 ),
               ),
@@ -367,14 +461,32 @@ class _ExplorePageState extends State<ExplorePage> {
           const SizedBox(height: 16),
           SizedBox(
             height: 180, // Scaled down
-            child: StreamBuilder<List<Listing>>(
-              stream: _listingRepo.streamActiveListings(),
+            child: FutureBuilder<List<Listing>>(
+              future: _activeListingsFuture,
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text("Error fetching posts."));
+                }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 
                 var listings = snapshot.data ?? [];
+          if (_activeFilters != null) {
+            final category = _activeFilters!['category'];
+            final condition = _activeFilters!['condition'];
+            
+            if (category != null && category != 'All') {
+                final catId = category.toString().toLowerCase().replaceAll(' & ', '_').replaceAll(' ', '_');
+                listings = listings.where((l) => l.categoryId == catId).toList();
+            }
+            if (condition != null && condition != 'Any') {
+                listings = listings.where((l) => l.condition == condition).toList();
+            }
+          } else if (_selectedCategory != null) {
+            listings = listings.where((l) => l.categoryId == _selectedCategory).toList();
+          }
+
                 // Filter by category if selected
                 if (_selectedCategory != null) {
                   listings = listings.where((l) => l.categoryId == _selectedCategory).toList();
@@ -486,8 +598,8 @@ class _ExplorePageState extends State<ExplorePage> {
             )
           ),
           const SizedBox(height: 16),
-          StreamBuilder<List<Listing>>(
-            stream: _listingRepo.streamActiveListings(),
+          FutureBuilder<List<Listing>>(
+            future: _activeListingsFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: Padding(

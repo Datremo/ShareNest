@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/data/repositories/listing_repository.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/presentation/widgets/liquid_glass_widgets.dart';
+import 'filters_bottom_sheet.dart';
 
 class FreeItemsPage extends StatefulWidget {
   const FreeItemsPage({super.key});
@@ -14,8 +16,16 @@ class FreeItemsPage extends StatefulWidget {
 }
 
 class _FreeItemsPageState extends State<FreeItemsPage> {
+  Map<String, dynamic>? _activeFilters;
   final _listingRepo = ListingRepository();
   String? _selectedCategory;
+  late Stream<List<Listing>> _giveStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _giveStream = _listingRepo.streamListingsByMode('GIVE');
+  }
 
   final List<Map<String, dynamic>> _categories = [
     {'name': 'All', 'icon': Icons.grid_view_rounded, 'id': null, 'color': AppColors.primaryDark},
@@ -28,6 +38,25 @@ class _FreeItemsPageState extends State<FreeItemsPage> {
     {'name': 'Electronics', 'icon': Icons.phone_iphone_rounded, 'id': 'electronics', 'color': Colors.indigo},
     {'name': 'Other', 'icon': Icons.more_horiz_rounded, 'id': 'other', 'color': Colors.grey},
   ];
+
+  Future<void> _showFilters() async {
+    final filters = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const FiltersBottomSheet(),
+    );
+    if (filters != null) {
+      setState(() {
+        _activeFilters = filters;
+        if (filters['category'] != null && filters['category'] != 'All') {
+          _selectedCategory = filters['category'];
+        } else {
+          _selectedCategory = null;
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,35 +129,74 @@ class _FreeItemsPageState extends State<FreeItemsPage> {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: GestureDetector(
-          onTap: () {
-            // Navigate to search results with mode='GIVE'
-            context.push('/search_results?mode=LEND');
-          },
-          child: GlassCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                const Icon(CupertinoIcons.search, color: AppColors.primaryDark, size: 20),
-                const SizedBox(width: 12),
-                Text(
-                  'Search free items...',
-                  style: TextStyle(
+        child: GlassCard(
+          padding: EdgeInsets.zero,
+          child: TypeAheadField<Listing>(
+            builder: (context, controller, focusNode) {
+              return TextField(
+                controller: controller,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  hintText: 'Search free items...',
+                  hintStyle: TextStyle(
                     color: AppColors.primaryDark.withValues(alpha: 0.5),
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                   ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                  prefixIcon: const Icon(CupertinoIcons.search, color: AppColors.primaryDark, size: 20),
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward, color: AppColors.primaryDark),
+                        onPressed: () {
+                          context.push('/search_results?mode=GIVE&query=${controller.text}');
+                        }
+                      ),
+                      GestureDetector(
+                        onTap: _showFilters,
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.tune_rounded, color: AppColors.primary, size: 16),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.tune_rounded, color: AppColors.primary, size: 16),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
-              ],
+              );
+            },
+            suggestionsCallback: (pattern) async {
+              if (pattern.isEmpty) return [];
+              return await _listingRepo.searchListings(pattern, mode: 'GIVE');
+            },
+            itemBuilder: (context, Listing item) {
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                elevation: 0,
+                color: Colors.white.withValues(alpha: 0.9),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: item.photoUrls.isNotEmpty 
+                      ? ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item.photoUrls.first, width: 50, height: 50, fit: BoxFit.cover)) 
+                      : const Icon(Icons.image, size: 40, color: Colors.grey),
+                  title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryDark)),
+                  subtitle: Text(item.locationName ?? 'Nearby', style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                ),
+              );
+            },
+            onSelected: (Listing item) {
+              context.push('/item', extra: item);
+            },
+            emptyBuilder: (context) => const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('No items found', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
             ),
           ),
         ),
@@ -217,7 +285,7 @@ class _FreeItemsPageState extends State<FreeItemsPage> {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       sliver: StreamBuilder<List<Listing>>(
-        stream: _listingRepo.streamListingsByMode('GIVE'),
+        stream: _giveStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const SliverToBoxAdapter(
@@ -229,9 +297,21 @@ class _FreeItemsPageState extends State<FreeItemsPage> {
           }
           
           var listings = snapshot.data ?? [];
-          if (_selectedCategory != null) {
+          if (_activeFilters != null) {
+            final category = _activeFilters!['category'];
+            final condition = _activeFilters!['condition'];
+            
+            if (category != null && category != 'All') {
+                final catId = category.toString().toLowerCase().replaceAll(' & ', '_').replaceAll(' ', '_');
+                listings = listings.where((l) => l.categoryId == catId).toList();
+            }
+            if (condition != null && condition != 'Any') {
+                listings = listings.where((l) => l.condition == condition).toList();
+            }
+          } else if (_selectedCategory != null) {
             listings = listings.where((l) => l.categoryId == _selectedCategory).toList();
           }
+
 
           if (listings.isEmpty) {
             return SliverToBoxAdapter(

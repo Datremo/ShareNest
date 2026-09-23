@@ -109,17 +109,23 @@ class ProfileRepository {
           .select('id')
           .count(CountOption.exact);
 
-      // 3. Helped Together (Completed transactions)
+      // 3. Helped Together (Completed transactions + Fulfilled urgent requests)
       final completedRes = await _supabase
           .from('item_requests')
           .select('id')
           .eq('status', 'COMPLETED')
           .count(CountOption.exact);
+          
+      final fulfilledUrgentRes = await _supabase
+          .from('urgent_requests')
+          .select('id')
+          .eq('status', 'FULFILLED')
+          .count(CountOption.exact);
 
       return {
         'neighbours': profilesRes.count,
         'items': listingsRes.count,
-        'helped': completedRes.count,
+        'helped': completedRes.count + fulfilledUrgentRes.count,
       };
     } catch (e) {
       print('Error fetching global stats: $e');

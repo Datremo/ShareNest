@@ -1,10 +1,10 @@
+import 'dart:ui';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'dart:ui';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
@@ -100,12 +100,12 @@ class _ReviewPostPageState extends State<ReviewPostPage> with SingleTickerProvid
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 24,
                 spreadRadius: -5,
                 offset: const Offset(0, 10),
@@ -177,7 +177,7 @@ class _ReviewPostPageState extends State<ReviewPostPage> with SingleTickerProvid
               width: 300, height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.15),
+                color: AppColors.primary.withValues(alpha: 0.15),
               ),
             ),
           ),
@@ -187,7 +187,7 @@ class _ReviewPostPageState extends State<ReviewPostPage> with SingleTickerProvid
               width: 250, height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.blueAccent.withOpacity(0.1),
+                color: Colors.blueAccent.withValues(alpha: 0.1),
               ),
             ),
           ),
@@ -218,7 +218,7 @@ class _ReviewPostPageState extends State<ReviewPostPage> with SingleTickerProvid
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.15),
+                                color: AppColors.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(mode.toUpperCase(), style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
@@ -299,7 +299,7 @@ class _ReviewPostPageState extends State<ReviewPostPage> with SingleTickerProvid
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFFF2F4F7).withOpacity(0),
+                    const Color(0xFFF2F4F7).withValues(alpha: 0),
                     const Color(0xFFF2F4F7),
                     const Color(0xFFF2F4F7),
                   ],
@@ -315,7 +315,7 @@ class _ReviewPostPageState extends State<ReviewPostPage> with SingleTickerProvid
                     color: _isSubmitting ? AppColors.primaryDark : AppColors.primary,
                     borderRadius: BorderRadius.circular(32),
                     boxShadow: _isSubmitting ? [] : [
-                      BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
+                      BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10)),
                     ],
                   ),
                   child: Stack(

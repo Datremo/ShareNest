@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/presentation/widgets/animated_checkmark.dart';
 import '../../../core/presentation/widgets/glassmorphism.dart';
@@ -202,7 +201,7 @@ class _RequestBorrowPageState extends State<RequestBorrowPage> {
                       height: 140,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(32),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10))],
                         image: widget.listing.photoUrls.isNotEmpty 
                           ? DecorationImage(image: NetworkImage(widget.listing.photoUrls.first), fit: BoxFit.cover)
                           : null,
@@ -251,7 +250,7 @@ class _RequestBorrowPageState extends State<RequestBorrowPage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
                   ),
                   child: TextField(
                     controller: _messageController,
@@ -310,7 +309,7 @@ class _RequestBorrowPageState extends State<RequestBorrowPage> {
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
               child: Icon(icon, color: AppColors.primary, size: 22),
             ),
             const SizedBox(width: 16),

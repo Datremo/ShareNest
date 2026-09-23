@@ -28,18 +28,28 @@ class _HomePageState extends State<HomePage> {
   };
   Key _refreshKey = UniqueKey();
 
+  late Future<List<Listing>> _activeListingsFuture;
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
     _loadGlobalStats();
+    _fetchListings();
     
     // Auto-refresh stats when tables change
     Supabase.instance.client.channel('public:listings').onPostgresChanges(
       event: PostgresChangeEvent.all,
       schema: 'public',
       table: 'listings',
-      callback: (payload) => _loadGlobalStats(),
+      callback: (payload) {
+        _loadGlobalStats();
+        if (mounted) {
+          setState(() {
+            _fetchListings();
+          });
+        }
+      },
     ).subscribe();
     
     Supabase.instance.client.channel('public:requests').onPostgresChanges(
@@ -55,6 +65,10 @@ class _HomePageState extends State<HomePage> {
       table: 'profiles',
       callback: (payload) => _loadGlobalStats(),
     ).subscribe();
+  }
+
+  void _fetchListings() {
+    _activeListingsFuture = _listingRepository.getActiveListings();
   }
 
   Future<void> _loadProfile() async {
@@ -83,6 +97,7 @@ class _HomePageState extends State<HomePage> {
         onRefresh: () async {
           _loadProfile();
           _loadGlobalStats();
+    _fetchListings();
           setState(() {
             _refreshKey = UniqueKey();
           });
@@ -97,31 +112,40 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 14),
               _buildBottomStatsBanner(),
               const SizedBox(height: 22),
-              _buildCarouselSection(
+              FutureBuilder<List<Listing>>(
                 key: _refreshKey,
-                title: 'Trending in Borrowing',
-                icon: Icons.inventory_2_rounded,
-                iconColor: const Color(0xFF34C759),
-                route: '/borrow_hub',
-                stream: _listingRepository.streamListingsByMode('LEND'),
-              ),
-              const SizedBox(height: 22),
-              _buildCarouselSection(
-                key: ValueKey('${_refreshKey.hashCode}_2'),
-                title: 'Trending Free Items',
-                icon: Icons.card_giftcard_rounded,
-                iconColor: const Color(0xFFFF9500),
-                route: '/free_items',
-                stream: _listingRepository.streamListingsByMode('GIVE'),
-              ),
-              const SizedBox(height: 22),
-              _buildCarouselSection(
-                key: ValueKey('${_refreshKey.hashCode}_3'),
-                title: 'Trending in Exchange',
-                icon: Icons.swap_horiz_rounded,
-                iconColor: const Color(0xFF007AFF),
-                route: '/exchange_hub',
-                stream: _listingRepository.streamListingsByMode('EXCHANGE'),
+                future: _activeListingsFuture,
+                builder: (context, snapshot) {
+                  final allItems = snapshot.data ?? [];
+                  final lendItems = allItems.where((l) => l.mode == 'LEND').toList();
+                  final giveItems = allItems.where((l) => l.mode == 'GIVE').toList();
+                  final exchangeItems = allItems.where((l) => l.mode == 'EXCHANGE').toList();
+                  
+                  return Column(
+                    children: [
+                      if (lendItems.isNotEmpty) ...[
+                        _buildCarouselSection(
+                          title: 'Trending in Borrowing',
+                          icon: Icons.inventory_2_rounded,
+                          iconColor: const Color(0xFF34C759),
+                          route: '/borrow_hub',
+                          items: lendItems,
+                        ),
+                        const SizedBox(height: 22),
+                      ],
+                      if (giveItems.isNotEmpty) ...[
+                        _buildCarouselSection(
+                          title: 'Trending Free Items',
+                          icon: Icons.card_giftcard_rounded,
+                          iconColor: const Color(0xFFFF9500),
+                          route: '/free_items',
+                          items: giveItems,
+                        ),
+                        const SizedBox(height: 22),
+                      ],
+                    ],
+                  );
+                }
               ),
               const SizedBox(height: 22),
               _buildMidBanner(),
@@ -344,18 +368,6 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Expanded(
                       child: _buildActionPill(
-                        title: 'Need It Now',
-                        subtitle: 'Urgent help',
-                        icon: Icons.bolt_rounded,
-                        topColor: const Color(0xFFFFE5E5),
-                        bottomColor: const Color(0xFFFF9E9E),
-                        btnColor: const Color(0xFFE53935),
-                        onTap: () => context.push('/urgent_request'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildActionPill(
                         title: 'Borrow',
                         subtitle: 'Find items',
                         icon: Icons.inventory_2_rounded,
@@ -380,13 +392,13 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: _buildActionPill(
-                        title: 'Exchange',
-                        subtitle: 'Trade locally',
-                        icon: Icons.swap_horiz_rounded,
-                        topColor: const Color(0xFFE5F0FF),
-                        bottomColor: const Color(0xFF9ECAFF),
-                        btnColor: const Color(0xFF007AFF),
-                        onTap: () => context.push('/exchange_hub'),
+                        title: 'Need It Now',
+                        subtitle: 'Urgent help',
+                        icon: Icons.bolt_rounded,
+                        topColor: const Color(0xFFFFE5E5),
+                        bottomColor: const Color(0xFFFF9E9E),
+                        btnColor: const Color(0xFFE53935),
+                        onTap: () => context.push('/live_radar'),
                       ),
                     ),
                   ],
@@ -666,23 +678,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCarouselSection({
-    Key? key,
     required String title,
     required IconData icon,
     required Color iconColor,
     required String route,
-    required Stream<List<Listing>> stream,
+    required List<Listing> items,
   }) {
-    return StreamBuilder<List<Listing>>(
-      key: key,
-      stream: stream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        final items = snapshot.data!;
-        
-        return Column(
+    if (items.isEmpty) return const SizedBox.shrink();
+    
+    return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
@@ -741,8 +745,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         );
-      },
-    );
   }
 
   Widget _buildItemCard(Listing item) {

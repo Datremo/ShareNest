@@ -54,21 +54,28 @@ class ListingRepository {
 
   // Future for Home/Explore Feed (Fallback from Stream to avoid Realtime exceptions)
   Future<List<Listing>> getActiveListings() async {
-    final response = await _client
-        .from('listings')
-        .select()
-        .eq('status', 'ACTIVE')
-        .order('created_at', ascending: false);
-    return (response as List).map((e) => Listing.fromJson(e)).toList();
+    try {
+      final response = await _client
+          .from('listings')
+          .select()
+          .eq('status', 'ACTIVE')
+          .order('created_at', ascending: false);
+      return (response as List).map((e) => Listing.fromJson(e)).toList();
+    } catch (e) {
+      print("Error in getActiveListings: $e");
+      return [];
+    }
   }
 
   Stream<List<Listing>> streamActiveListings() {
     return _client
         .from('listings')
         .stream(primaryKey: ['id'])
-        .eq('status', 'ACTIVE')
         .order('created_at', ascending: false)
-        .map((data) => data.map((e) => Listing.fromJson(e)).toList());
+        .map((data) => data
+            .map((e) => Listing.fromJson(e))
+            .where((l) => l.status == 'ACTIVE')
+            .toList());
   }
 
   Future<int> getTotalActiveListingsCount() async {
@@ -80,15 +87,20 @@ class ListingRepository {
   }
 
   Future<List<Listing>> getUserListings() async {
-    final user = _client.auth.currentUser;
-    if (user == null) return [];
-    
-    final response = await _client
-        .from('listings')
-        .select()
-        .eq('owner_id', user.id)
-        .order('created_at', ascending: false);
-    return (response as List).map((e) => Listing.fromJson(e)).toList();
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return [];
+      
+      final response = await _client
+          .from('listings')
+          .select()
+          .eq('owner_id', user.id)
+          .order('created_at', ascending: false);
+      return (response as List).map((e) => Listing.fromJson(e)).toList();
+    } catch (e) {
+      print("Error in getUserListings: $e");
+      return [];
+    }
   }
 
   /// Fetch active listings filtered by mode (LEND, GIVE, EXCHANGE)
@@ -106,14 +118,31 @@ class ListingRepository {
     return _client
         .from('listings')
         .stream(primaryKey: ['id'])
-        .eq('status', 'ACTIVE')
-        .eq('mode', mode)
         .order('created_at', ascending: false)
-        .map((data) => data.map((e) => Listing.fromJson(e)).toList());
+        .map((data) => data
+            .map((e) => Listing.fromJson(e))
+            .where((l) => l.status == 'ACTIVE' && l.mode == mode)
+            .toList());
   }
 
   /// Delete a listing by ID
   Future<void> deleteListing(String id) async {
     await _client.from('listings').delete().eq('id', id);
+  }
+  
+  Future<List<Listing>> searchListings(String query, {String? mode}) async {
+    if (query.isEmpty) return [];
+    var queryBuilder = _client
+        .from('listings')
+        .select()
+        .eq('status', 'ACTIVE')
+        .ilike('title', '%$query%');
+    
+    if (mode != null && mode.isNotEmpty) {
+      queryBuilder = queryBuilder.eq('mode', mode);
+    }
+    
+    final response = await queryBuilder.order('created_at', ascending: false).limit(10);
+    return (response as List).map((e) => Listing.fromJson(e)).toList();
   }
 }

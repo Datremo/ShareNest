@@ -757,7 +757,7 @@ class _UrgentRequestPageState extends State<UrgentRequestPage> {
           ),
           CupertinoSwitch(
             value: value,
-            activeColor: _darkGreen,
+            activeTrackColor: _darkGreen,
             onChanged: onChanged,
           ),
         ],

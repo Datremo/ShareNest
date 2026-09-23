@@ -1,7 +1,8 @@
-import 'dart:async';
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:demo/core/data/models/app_notification.dart';
 import 'package:demo/core/data/models/item_request.dart';
 import 'package:demo/core/data/models/listing.dart';
@@ -58,6 +59,10 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
           setState(() {
             if (events.isNotEmpty) {
               _notifications = events.map((e) => AppNotification.fromJson(e)).toList();
+              // Removed auto mark as read so unread indicator stays until manually cleared (or tapped)
+              // if (_currentIndex == 0) {
+              //   _markNotificationsAsRead();
+              // }
             }
           });
         }
@@ -70,12 +75,13 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
   }
 
   void _handleTabSelection(int index) {
-    if (_currentIndex == 0 && index != 0) {
-      _markNotificationsAsRead();
-    }
     setState(() {
       _currentIndex = index;
     });
+    // Removed auto mark as read
+    // if (_currentIndex == 0) {
+    //   _markNotificationsAsRead();
+    // }
   }
 
   void _markNotificationsAsRead() {
@@ -122,12 +128,8 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
           final rawIncoming = results[0] as List<Map<String, dynamic>>;
           final rawOutgoing = results[1] as List<Map<String, dynamic>>;
           
-          final now = DateTime.now();
           bool filterCompleted(Map<String, dynamic> req) {
-            if (req['status'] == 'COMPLETED') {
-              final updatedAt = DateTime.parse(req['updated_at']);
-              return now.difference(updatedAt).inHours < 24;
-            }
+            // Removed 24 hour filter so we see complete history
             return true;
           }
           
@@ -212,31 +214,63 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
       );
     }
 
+    // Segregate by time
+    final now = DateTime.now();
+    final today = _notifications.where((n) => now.difference(n.createdAt).inDays == 0).toList();
+    final yesterday = _notifications.where((n) => now.difference(n.createdAt).inDays == 1).toList();
+    final lastWeek = _notifications.where((n) => now.difference(n.createdAt).inDays > 1 && now.difference(n.createdAt).inDays <= 7).toList();
+    final older = _notifications.where((n) => now.difference(n.createdAt).inDays > 7).toList();
+
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
-            final notif = _notifications[index];
-            return StaggeredListItem(
-              index: index,
-              child: PhysicsCard(
-                onTap: () {
-                  final reqId = notif.data?['request_id'];
-                  if (reqId != null) {
-                    if (notif.type == 'request_received') {
-                      context.push('/owner-request-detail/$reqId').then((_) => _loadData());
-                    } else {
-                      context.push('/requester-request-detail/$reqId').then((_) => _loadData());
-                    }
-                  }
-                },
-                child: _buildNotificationItem(notif),
-              ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (today.isNotEmpty && index == 0) ...[
+                  Padding(padding: const EdgeInsets.only(left: 8, bottom: 12, top: 8), child: Text('Today', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87))),
+                  ...today.map((notif) => _wrapNotificationItem(notif, 0)),
+                ],
+                if (yesterday.isNotEmpty && index == (today.isEmpty ? 0 : 1)) ...[
+                  Padding(padding: const EdgeInsets.only(left: 8, bottom: 12, top: 24), child: Text('Yesterday', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87))),
+                  ...yesterday.map((notif) => _wrapNotificationItem(notif, 1)),
+                ],
+                if (lastWeek.isNotEmpty && index == ((today.isEmpty ? 0 : 1) + (yesterday.isEmpty ? 0 : 1))) ...[
+                  Padding(padding: const EdgeInsets.only(left: 8, bottom: 12, top: 24), child: Text('Last Week', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87))),
+                  ...lastWeek.map((notif) => _wrapNotificationItem(notif, 2)),
+                ],
+                if (older.isNotEmpty && index == ((today.isEmpty ? 0 : 1) + (yesterday.isEmpty ? 0 : 1) + (lastWeek.isEmpty ? 0 : 1))) ...[
+                  Padding(padding: const EdgeInsets.only(left: 8, bottom: 12, top: 24), child: Text('Older', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87))),
+                  ...older.map((notif) => _wrapNotificationItem(notif, 3)),
+                ],
+              ],
             );
           },
-          childCount: _notifications.length,
+          childCount: (today.isNotEmpty ? 1 : 0) + (yesterday.isNotEmpty ? 1 : 0) + (lastWeek.isNotEmpty ? 1 : 0) + (older.isNotEmpty ? 1 : 0),
         ),
+      ),
+    );
+  }
+
+  Widget _wrapNotificationItem(AppNotification notif, int groupIndex) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: PhysicsCard(
+        onTap: () {
+          // Mark this individual notification as read when clicked
+          if (!notif.isRead) _notificationRepo.markAsRead(notif.id);
+          final reqId = notif.data?['request_id'];
+          if (reqId != null) {
+            if (notif.type == 'request_received') {
+              context.push('/owner-request-detail/$reqId').then((_) => _loadData());
+            } else {
+              context.push('/requester-request-detail/$reqId').then((_) => _loadData());
+            }
+          }
+        },
+        child: _buildNotificationItem(notif),
       ),
     );
   }

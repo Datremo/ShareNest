@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:ui';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/data/repositories/profile_repository.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/data/models/profile.dart';
+import '../../../core/data/models/listing.dart';
+import '../../../core/data/repositories/profile_repository.dart';
+import '../../../core/data/repositories/listing_repository.dart';
+import '../../../core/data/repositories/request_repository.dart';
+import '../../../core/theme/app_colors.dart';
 
 class ProfilePage extends StatefulWidget {
   final String? userId;
@@ -15,20 +18,15 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
-  final ProfileRepository _profileRepo = ProfileRepository();
+class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
+  final _profileRepo = ProfileRepository();
+  final _listingRepo = ListingRepository();
+  final _requestRepo = RequestRepository();
+
   bool _isLoading = true;
   Profile? _profile;
-  Map<String, int> _stats = {'items': 0, 'requests': 0, 'borrows': 0, 'lends': 0};
-
-  bool get _isMe {
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    return widget.userId == null || widget.userId == currentUserId;
-  }
-
-  String get _targetUserId {
-    return widget.userId ?? Supabase.instance.client.auth.currentUser!.id;
-  }
+  Map<String, int> _stats = {};
+  List<Listing> _activeListings = [];
 
   @override
   void initState() {
@@ -37,521 +35,732 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    final userId = widget.userId ?? Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
     try {
-      final futures = await Future.wait([
-        _profileRepo.getProfile(_targetUserId),
-        _profileRepo.getProfileStats(_targetUserId),
-      ]);
-      setState(() {
-        _profile = futures[0] as Profile?;
-        _stats = futures[1] as Map<String, int>;
-      });
+      final profile = await _profileRepo.getProfile(userId);
+      final stats = await _profileRepo.getProfileStats(userId);
+      final allMyListings = await _listingRepo.getUserListings();
+
+      if (mounted) {
+        setState(() {
+          _profile = profile;
+          _stats = stats;
+          // Filter to active ones for "Active Now" section
+          _activeListings = allMyListings.where((l) => l.status.toLowerCase() == 'available' || l.status.toLowerCase() == 'active' || l.status.toLowerCase() == 'reserved').toList();
+          
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      debugPrint('Error loading profile: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      debugPrint('Error loading profile data: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _signOut() async {
+    await Supabase.instance.client.auth.signOut();
+    if (mounted) {
+      context.go('/login');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF7F9FC),
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FC), // Apple-like subtle gray-blue
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : Stack(
-              children: [
-                // Abstract Background Orbs
-                Positioned(
-                  top: -50,
-                  left: -50,
-                  child: Container(
-                    width: 300,
-                    height: 300,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      boxShadow: [BoxShadow(blurRadius: 100, color: AppColors.primary.withValues(alpha: 0.2))],
+      backgroundColor: const Color(0xFFF7F9FC),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.zero,
+        physics: const ClampingScrollPhysics(),
+        child: Column(
+          children: [
+            _buildHeaderAndProfileInfo(),
+            
+            _buildCommunityImpact(),
+            const SizedBox(height: 20),
+            _buildDashboardButtons(context),
+            const SizedBox(height: 20),
+            if (_activeListings.isNotEmpty) _buildActiveNow(),
+            const SizedBox(height: 20),
+            _buildSavedItems(),
+            const SizedBox(height: 24),
+            _buildLogoutButton(context),
+            const SizedBox(height: 100), // padding for bottom nav
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderAndProfileInfo() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Top Banner
+        Container(
+          height: 260,
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/profile_banner.png'),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        // Gradient overlay for readability at the top
+        Container(
+          height: 120,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.white.withValues(alpha: 0.3), Colors.transparent],
+            ),
+          ),
+        ),
+        // Settings Button top right
+        Positioned(
+          top: 45,
+          right: 20,
+          child: GestureDetector(
+            onTap: () => context.push('/settings'),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.8),
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+              ),
+              child: const Icon(Icons.settings, color: AppColors.primaryDark, size: 22),
+            ),
+          ),
+        ),
+        
+        // Main Content Container
+        Padding(
+          padding: const EdgeInsets.only(top: 170),
+          child: Column(
+            children: [
+              // Avatar
+              Center(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 15, offset: const Offset(0, 5)),
+                        ],
+                        image: DecorationImage(
+                          image: NetworkImage(_profile?.photoUrl ?? 'https://ui-avatars.com/api/?name=${_profile?.displayName ?? 'Neighbor'}&background=random'),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                Positioned(
-                  bottom: -100,
-                  right: -100,
-                  child: Container(
-                    width: 350,
-                    height: 350,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.exchange.withValues(alpha: 0.1),
-                      boxShadow: [BoxShadow(blurRadius: 120, color: AppColors.exchange.withValues(alpha: 0.2))],
-                    ),
-                  ),
-                ),
-                
-                CustomScrollView(
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                  slivers: [
-                    _buildSliverAppBar(),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: 24),
-                            _buildStatsSummary(),
-                            const SizedBox(height: 32),
-                            if (_isMe) ...[
-                              _buildQuickActions(),
-                              const SizedBox(height: 32),
-                            ],
-                            _buildSectionHeader('About Me'),
-                            const SizedBox(height: 12),
-                            _buildBioCard(),
-                            const SizedBox(height: 24),
-                            _buildSectionHeader('Details'),
-                            const SizedBox(height: 12),
-                            _buildDetailsGrid(),
-                            const SizedBox(height: 40),
-                          ],
+                    Positioned(
+                      top: 5,
+                      right: 5,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF34C759),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildSliverAppBar() {
-    return SliverAppBar(
-      expandedHeight: 180,
-      pinned: true,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      flexibleSpace: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: FlexibleSpaceBar(
-            background: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.6),
-                    boxShadow: [
-                      BoxShadow(color: AppColors.primary.withValues(alpha: 0.15), blurRadius: 20, spreadRadius: 2),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.white,
-                    backgroundImage: _profile?.photoUrl != null
-                        ? NetworkImage(_profile!.photoUrl!)
-                        : null,
-                    child: _profile?.photoUrl == null
-                        ? const Icon(Icons.person, size: 40, color: Colors.grey)
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _profile?.displayName ?? 'User',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: AppColors.primaryDark,
-                      ),
-                    ),
-                    if (_profile?.isVerified == true) ...[
-                      const SizedBox(width: 4),
-                      const Icon(Icons.verified, color: Colors.blue, size: 18),
-                    ]
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        if (_isMe)
-          PhysicsButton(
-            onTap: () => context.push('/edit_profile').then((_) => _loadData()),
-            child: Container(
-              margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.5),
-                shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.edit, color: AppColors.primaryDark, size: 20),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildStatsSummary() {
-    return LiquidGlassCard(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildStatItem('Items', _stats['items'].toString()),
-            _buildDivider(),
-            _buildStatItem('Requests', _stats['requests'].toString()),
-            _buildDivider(),
-            _buildStatItem('Lends', _stats['lends'].toString()),
-            _buildDivider(),
-            _buildStatItem('Borrows', _stats['borrows'].toString()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return Container(
-      height: 30,
-      width: 1,
-      color: AppColors.primaryDark.withValues(alpha: 0.1),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            color: AppColors.primaryDark,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActions() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: PhysicsButton(
-                onTap: () => context.push('/tracking_dashboard'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primary, Color(0xFF4A90E2)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5)),
-                    ],
-                  ),
-                  child: const Row(
+              const SizedBox(height: 12),
+              // Name and Edit Button Row
+              Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.dashboard_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text('Dashboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        _profile?.displayName ?? 'Neighbor',
+                        style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.verified, color: Colors.blue, size: 20),
                     ],
                   ),
+                  Positioned(
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () => context.push('/edit_profile'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.edit, size: 14, color: Color(0xFF1E293B)),
+                            const SizedBox(width: 6),
+                            Text('Edit Profile', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B))),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Location & Member since
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.location_on, size: 12, color: Color(0xFF64748B)),
+                  const SizedBox(width: 4),
+                  Text('Mumbai, Maharashtra', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.calendar_today, size: 11, color: Color(0xFF64748B)),
+                  const SizedBox(width: 4),
+                  Text('Member since Jan 2026', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Bio
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  _profile?.bio ?? 'Creator of ShareNest. Happy to help neighbours and build a kinder, more connected community. 🌱',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF475569), height: 1.4, fontWeight: FontWeight.w500),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: PhysicsButton(
-                onTap: () => context.push('/my_posts'),
+              const SizedBox(height: 24),
+              // "Small actions" Banner
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  height: 70,
                   decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(35),
                     gradient: LinearGradient(
-                      colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                      colors: [Colors.white.withValues(alpha: 0.8), Colors.white.withValues(alpha: 0.4)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
                     ),
-                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
                     boxShadow: [
-                      BoxShadow(color: Colors.orange.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5)),
+                      BoxShadow(color: const Color(0xFF34C759).withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10)),
                     ],
                   ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(
                     children: [
-                      Icon(Icons.list_alt_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text('My Posts', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(width: 10),
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAF5EF),
+                          shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: const Color(0xFF34C759).withValues(alpha: 0.2), blurRadius: 8)],
+                        ),
+                        child: const Icon(Icons.energy_savings_leaf, color: Color(0xFF34C759), size: 26),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '"Small actions.',
+                              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: const Color(0xFF0F4C3A), fontStyle: FontStyle.italic),
+                            ),
+                            Text(
+                              'Bigger neighbourhoods."',
+                              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: const Color(0xFF0F4C3A), fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)],
+                        ),
+                        child: const Icon(Icons.chevron_right, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(width: 16),
                     ],
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        PhysicsButton(
-          onTap: () => context.push('/settings'),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5)),
-              ],
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.settings_rounded, color: AppColors.primaryDark, size: 20),
-                SizedBox(width: 8),
-                Text('Settings', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 16)),
-              ],
-            ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-        letterSpacing: -0.5,
-        color: AppColors.primaryDark,
-      ),
-    );
-  }
-
-  Widget _buildBioCard() {
-    return LiquidGlassCard(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Text(
-          _profile?.bio != null && _profile!.bio!.isNotEmpty
-              ? _profile!.bio!
-              : 'No bio provided. Add one to let neighbors know you!',
-          style: TextStyle(
-            fontSize: 15,
-            height: 1.5,
-            color: _profile?.bio != null ? AppColors.primaryDark : Colors.grey.shade600,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailsGrid() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: LiquidGlassCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 24),
-                      const SizedBox(height: 12),
-                      const Text('Location', style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Text(
-                        _profile?.locationName ?? 'Not set',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
-                      ),
-                    ],
-                  ),
-                ),
+  
+  Widget _buildCommunityImpact() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.energy_savings_leaf, color: Color(0xFF34C759), size: 24),
+                  const SizedBox(width: 8),
+                  Text('Community Impact', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
+                ],
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: LiquidGlassCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.star_rounded, color: Colors.amber, size: 24),
-                      const SizedBox(height: 12),
-                      const Text('Trust Score', style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Text(
-                        _profile?.trustScore != null ? '${_profile!.trustScore}' : '100',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        LiquidGlassCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.give.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.favorite_rounded, color: AppColors.give),
-                ),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Interests & Wishlist', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
-                      SizedBox(height: 4),
-                      Text('Coming Soon in v2.0', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: Colors.grey),
-              ],
-            ),
+              Text('Together, we make a kinder neighbourhood.', style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B), fontWeight: FontWeight.w500)),
+            ],
           ),
-        ),
-      ],
-    );
-  }
-}
-
-// --- iOS 26 Physics & Glass Utilities ---
-
-class PhysicsButton extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onTap;
-
-  const PhysicsButton({super.key, required this.child, required this.onTap});
-
-  @override
-  State<PhysicsButton> createState() => _PhysicsButtonState();
-}
-
-class _PhysicsButtonState extends State<PhysicsButton> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
-    // Spring physics-like feeling
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onTapDown(TapDownDetails details) {
-    _controller.forward();
-  }
-
-  void _onTapUp(TapUpDetails details) {
-    _controller.reverse();
-    widget.onTap();
-  }
-
-  void _onTapCancel() {
-    _controller.reverse();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: _onTapUp,
-      onTapCancel: _onTapCancel,
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) => Transform.scale(
-          scale: _scaleAnimation.value,
-          child: child,
-        ),
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-class LiquidGlassCard extends StatelessWidget {
-  final Widget child;
-  final double sigma;
-  final double opacity;
-
-  const LiquidGlassCard({
-    super.key,
-    required this.child,
-    this.sigma = 20.0,
-    this.opacity = 0.6,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: opacity),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildImpactCard(Icons.energy_savings_leaf, const Color(0xFFEAF5EF), const Color(0xFF34C759), '${_stats['items'] ?? 18}', 'Items\nShared'),
+              _buildImpactCard(Icons.people, const Color(0xFFF3E8FA), const Color(0xFFAF52DE), '${_stats['lends'] ?? 11}', 'Neighbours\nHelped'),
+              _buildImpactCard(Icons.autorenew, const Color(0xFFEAF5EF), const Color(0xFF34C759), '${_stats['borrows'] ?? 14}', 'Items\nReused'),
+              _buildImpactCard(Icons.public, const Color(0xFFE6F0FA), const Color(0xFF007AFF), '1', 'A Greener\nCommunity'),
+            ],
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-          child: child,
+    );
+  }
+
+  Widget _buildImpactCard(IconData icon, Color bgColor, Color iconColor, String value, String label) {
+    return Container(
+      width: 82,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconColor, size: 24),
+          ),
+          const SizedBox(height: 8),
+          Text(value, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: const Color(0xFF64748B), height: 1.1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashboardButtons(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          // My Dashboard Button
+          GestureDetector(
+            onTap: () => context.push('/tracking_dashboard'),
+            child: Container(
+              height: 70,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2DD4BF), Color(0xFF0EA5E9)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                boxShadow: [BoxShadow(color: const Color(0xFF2DD4BF).withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))],
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 20),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.dashboard_rounded, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('My Dashboard', style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('View your complete activity, stats and insights', style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.9), fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  // Fake chart graphic area
+                  Container(
+                    width: 70,
+                    height: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.only(topRight: Radius.circular(20), bottomRight: Radius.circular(20)),
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
+                    child: const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 40),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: const Icon(Icons.arrow_forward, color: Color(0xFF0EA5E9), size: 16),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // My SOS Signals Button
+          GestureDetector(
+            onTap: () => context.push('/my_sos_signals'),
+            child: Container(
+              height: 70,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE53935), Color(0xFFFF8A80)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                boxShadow: [BoxShadow(color: const Color(0xFFE53935).withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))],
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 20),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('My SOS Signals', style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('Manage your active and past urgent requests', style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.9), fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                  const SizedBox(width: 16),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // My Posts Button
+          GestureDetector(
+            onTap: () => context.push('/my_posts'),
+            child: Container(
+              height: 70,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF8A65), Color(0xFFFFCCBC)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                boxShadow: [BoxShadow(color: const Color(0xFFFF8A65).withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))],
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 20),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.article_rounded, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('My Posts', style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('View and manage all your posts', style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.9), fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  // Real image stack from active listings
+                  if (_activeListings.isNotEmpty)
+                    SizedBox(
+                      width: 70,
+                      child: Stack(
+                        alignment: Alignment.centerRight,
+                        children: [
+                          if (_activeListings.isNotEmpty && _activeListings[0].imageUrls.isNotEmpty)
+                            _buildPhoto(_activeListings[0].imageUrls.first, 0, 20),
+                          if (_activeListings.length > 1 && _activeListings[1].imageUrls.isNotEmpty)
+                            _buildPhoto(_activeListings[1].imageUrls.first, 1, 10),
+                          if (_activeListings.length > 2 && _activeListings[2].imageUrls.isNotEmpty)
+                            _buildPhoto(_activeListings[2].imageUrls.first, 2, 0),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: const Icon(Icons.arrow_forward, color: Color(0xFFFF8A65), size: 16),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhoto(String url, int index, double rightOffset) {
+    return Positioned(
+      right: rightOffset,
+      child: Transform.rotate(
+        angle: index == 0 ? -0.1 : (index == 2 ? 0.1 : 0),
+        child: Container(
+          width: 36,
+          height: 48,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.white, width: 2),
+            image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(2, 2))],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveNow() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Active Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+              GestureDetector(
+                onTap: () => context.push('/my_posts'),
+                child: Row(
+                  children: const [
+                    Text('See All', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 11)),
+                    Icon(Icons.chevron_right, size: 14, color: AppColors.primaryDark),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 160,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _activeListings.length,
+            itemBuilder: (context, index) {
+              final item = _activeListings[index];
+              return Container(
+                width: 120,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      child: Stack(
+                        children: [
+                          item.photoUrls.isNotEmpty
+                              ? Image.network(item.photoUrls.first, height: 90, width: double.infinity, fit: BoxFit.cover)
+                              : Container(height: 90, color: Colors.grey[200]),
+                          Positioned(
+                            bottom: 6,
+                            left: 6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+                              child: Text(item.mode == 'GIVE' ? 'Giving' : item.mode == 'LEND' ? 'Lending' : 'Exchange', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              const Icon(Icons.more_vert, size: 12, color: Colors.grey),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text('Available', style: TextStyle(color: Colors.grey[600], fontSize: 10)),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(Icons.people, size: 8, color: AppColors.primary),
+                              const SizedBox(width: 4),
+                              Text('3 interested', style: TextStyle(color: Colors.grey[800], fontSize: 9)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSavedItems() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.bookmark, color: Colors.orange, size: 14),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Saved Items', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+                      Text("Items you're interested in", style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+                    ],
+                  ),
+                ],
+              ),
+              Row(
+                children: const [
+                  Text('See All', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 11)),
+                  Icon(Icons.chevron_right, size: 14, color: AppColors.primaryDark),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // We don't have saved items data loaded yet, so show a realistic empty state
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Text("No saved items yet.", style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: _signOut,
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
+            boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const SizedBox(width: 20),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.logout_rounded, color: Colors.red, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text('Logout', style: GoogleFonts.outfit(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.only(right: 20),
+                child: Icon(Icons.chevron_right, color: Colors.red, size: 20),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -27,7 +27,7 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
+            color: Colors.white.withValues(alpha: 0.85),
             borderRadius: const BorderRadius.only(topLeft: Radius.circular(36), topRight: Radius.circular(36)),
             border: Border.all(color: Colors.white, width: 2),
           ),
@@ -41,7 +41,7 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
                   width: 48,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: AppColors.grey400.withOpacity(0.5), 
+                    color: AppColors.grey400.withValues(alpha: 0.5), 
                     borderRadius: BorderRadius.circular(3)
                   ),
                 ),
@@ -55,7 +55,7 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
                   children: [
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
@@ -77,7 +77,7 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Text('Clear All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13)),
@@ -149,7 +149,7 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -165,13 +165,35 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
                             ),
                             CupertinoSwitch(
                               value: _verifiedOnly,
-                              activeColor: AppColors.primary,
+                              activeTrackColor: AppColors.primary,
                               onChanged: (v) => setState(() => _verifiedOnly = v),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 120), // Padding for bottom button
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            context.pop({
+                              'category': _selectedCategory,
+                              'distance': _selectedDistance,
+                              'condition': _selectedCondition,
+                              'availability': _selectedAvailability,
+                              'verifiedOnly': _verifiedOnly,
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Text('Apply Filters', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(height: 48), // Padding for bottom 
                     ],
                   ),
                 ),
@@ -211,12 +233,12 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary : Colors.white.withOpacity(0.6),
+                    color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: isSelected ? AppColors.primary : Colors.white, width: 2),
                     boxShadow: isSelected 
-                        ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))] 
-                        : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+                        ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))] 
+                        : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
                   ),
                   child: Icon(
                     cat['icon'] as IconData,
@@ -250,12 +272,12 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white.withOpacity(0.6),
+          color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: isSelected ? AppColors.primary : Colors.white, width: 2),
           boxShadow: isSelected 
-              ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))] 
-              : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5, offset: const Offset(0, 2))],
+              ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))] 
+              : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 5, offset: const Offset(0, 2))],
         ),
         child: Text(
           label,

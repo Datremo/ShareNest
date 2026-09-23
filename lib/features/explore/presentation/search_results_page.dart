@@ -126,7 +126,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Row(
           children: [
@@ -139,7 +139,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                 child: item.photoUrls.isNotEmpty
                     ? Image.network(item.photoUrls.first, fit: BoxFit.cover)
                     : Container(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         child: const Icon(Icons.image_outlined, color: AppColors.primary, size: 40),
                       ),
               ),
@@ -181,7 +181,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _getModeColor(item.mode).withOpacity(0.1),
+                        color: _getModeColor(item.mode).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
