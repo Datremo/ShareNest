@@ -29,6 +29,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   bool _isLoadingOwner = true;
   int _pendingRequestsCount = 0;
   bool _isLoadingRequests = true;
+  bool _hasActiveOrAcceptedRequest = false;
 
   List<String> get _images => _currentListing.photoUrls;
   bool get _isOwner => Supabase.instance.client.auth.currentUser?.id == _currentListing.ownerId;
@@ -62,6 +63,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
       if (mounted) {
         setState(() {
           _pendingRequestsCount = requests.where((r) => r['status'] == 'PENDING').length;
+          _hasActiveOrAcceptedRequest = requests.any((r) => ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'ACTIVE', 'RETURN_REQUESTED'].contains(r['status']));
         });
       }
     } catch (e) {
@@ -588,23 +590,39 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                                 context.push('/owner_requests_list', extra: _currentListing);
                               },
                             )
-                          : GlassButton(
-                              label: _currentListing.mode == 'LEND'
-                                  ? 'Request to Borrow'
-                                  : _currentListing.mode == 'GIVE'
-                                      ? 'Request Item'
-                                      : 'Offer Exchange',
-                              icon: Icons.handshake_rounded,
-                              onPressed: () {
-                                if (_currentListing.mode == 'LEND') {
-                                  context.push('/request_borrow', extra: _currentListing);
-                                } else if (_currentListing.mode == 'GIVE') {
-                                  context.push('/request_free_item', extra: _currentListing);
-                                } else {
-                                  context.push('/request_exchange', extra: _currentListing);
-                                }
-                              },
-                            ),
+                          : _hasActiveOrAcceptedRequest
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange[100],
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.lock_clock, color: Colors.orange),
+                                      SizedBox(width: 8),
+                                      Text('Currently Unavailable', style: TextStyle(color: Colors.orange, fontSize: 16, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                )
+                              : GlassButton(
+                                  label: _currentListing.mode == 'LEND'
+                                      ? 'Request to Borrow'
+                                      : _currentListing.mode == 'GIVE'
+                                          ? 'Request Item'
+                                          : 'Offer Exchange',
+                                  icon: Icons.handshake_rounded,
+                                  onPressed: () {
+                                    if (_currentListing.mode == 'LEND') {
+                                      context.push('/request_borrow', extra: _currentListing);
+                                    } else if (_currentListing.mode == 'GIVE') {
+                                      context.push('/request_free_item', extra: _currentListing);
+                                    } else {
+                                      context.push('/request_exchange', extra: _currentListing);
+                                    }
+                                  },
+                                ),
                 ),
               ],
             ),

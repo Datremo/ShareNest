@@ -218,11 +218,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.email_outlined, color: AppColors.primaryDark),
+                              const Icon(Icons.person_outline, color: AppColors.primaryDark),
                               const SizedBox(width: 16),
                               const Expanded(
                                 child: Text(
-                                  'Login with Email',
+                                  'Login with Username',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,

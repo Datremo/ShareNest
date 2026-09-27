@@ -10,6 +10,9 @@ import '../../../core/data/models/listing.dart';
 import '../../../core/data/models/profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import '../../../core/maps/sharenest_map.dart';
+import '../../../core/location/location_autocomplete_field.dart';
+import 'package:geolocator/geolocator.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -29,6 +32,9 @@ class _ExplorePageState extends State<ExplorePage> {
 
   late Future<List<Listing>> _activeListingsFuture;
   RealtimeChannel? _listingsChannel;
+  
+  Position? _mapCenter;
+  String _locationName = 'Navi Mumbai';
 
   @override
   void initState() {
@@ -101,8 +107,131 @@ class _ExplorePageState extends State<ExplorePage> {
     }
   }
 
+  Future<void> _openLocationSearch() async {
+    final TextEditingController searchController = TextEditingController();
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Search Location', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+              const SizedBox(height: 24),
+              LocationAutocompleteField(
+                controller: searchController,
+                onSelected: (suggestion) {
+                  setState(() {
+                    _mapCenter = Position(
+                       latitude: suggestion.lat,
+                       longitude: suggestion.lon,
+                       timestamp: DateTime.now(),
+                       accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0, altitudeAccuracy: 0, headingAccuracy: 0
+                    );
+                    _locationName = suggestion.displayName;
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!_isListView) {
+      return Scaffold(
+        body: Stack(
+          children: [
+            FutureBuilder<List<Listing>>(
+              future: _activeListingsFuture,
+              builder: (context, snapshot) {
+                final mapItems = (snapshot.data ?? []).where((p) => p.latitude != null && p.longitude != null).map((p) => {
+                  'id': p.id,
+                  'title': p.title,
+                  'lat': p.latitude,
+                  'lng': p.longitude,
+                  'type': p.mode == 'LEND' ? 'lend' : (p.mode == 'GIVE' ? 'give' : 'exchange'),
+                  'wrapper': p,
+                }).toList();
+
+                return ShareNestMap(
+                  key: ValueKey('explore_map_${_mapCenter?.latitude ?? 0}'),
+                  mode: MapMode.explore,
+                  items: mapItems,
+                  initialCenter: _mapCenter,
+                  onMarkerTapped: (data) {
+                    _showMapItemPreview(data['wrapper'] as Listing);
+                  },
+                );
+              }
+            ),
+            
+            // Floating Top Header
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _openLocationSearch,
+                        child: Container(
+                          height: 52,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.95),
+                            borderRadius: BorderRadius.circular(26),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 4))],
+                            border: Border.all(color: Colors.grey[300]!, width: 1),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.search, color: AppColors.primary, size: 24),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Search area or address', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+                                    Text(_locationName, style: const TextStyle(color: AppColors.primaryDark, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Floating Toggle Switch
+            Positioned(
+              bottom: 96, // Moved up to avoid overlapping with bottom navigation bar
+              left: 0,
+              right: 0,
+              child: Center(child: _buildTogglePill()),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5F8), // Light gray background matching image
       body: CustomScrollView(
@@ -110,6 +239,170 @@ class _ExplorePageState extends State<ExplorePage> {
           _buildTopHeader(),
           _buildTrendingNearby(),
           _buildAllItemsNearby(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.8),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4))
+          ]
+        ),
+        child: Icon(icon, color: Colors.black87, size: 20),
+      ),
+    );
+  }
+
+  void _showMapItemPreview(Listing listing) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return GestureDetector(
+          onTap: () {
+            Navigator.pop(context);
+            context.push('/items/${listing.id}', extra: listing);
+          },
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10)),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (listing.photoUrls.isNotEmpty)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          listing.photoUrls.first,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 80, height: 80,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 80, height: 80,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
+                      ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(listing.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primaryDark), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: listing.mode == 'LEND' ? Colors.green[50] : Colors.orange[50],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  listing.mode == 'LEND' ? '🟢 Lend' : (listing.mode == 'GIVE' ? '🟠 Give' : '🔵 Exchange'),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: listing.mode == 'LEND' ? Colors.green[700] : Colors.orange[700]
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('📍 ~850 m', style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text('View Item ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                              Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    );
+  }
+
+  Widget _buildTogglePill() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () => setState(() => _isListView = false),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                color: !_isListView ? Colors.greenAccent[400] : Colors.transparent,
+              ),
+              child: Row(children: [
+                Icon(CupertinoIcons.map, size: 16, color: !_isListView ? Colors.white : AppColors.primaryDark), 
+                const SizedBox(width: 6),
+                Text('Map View', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: !_isListView ? Colors.white : AppColors.primaryDark))
+              ]),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => setState(() => _isListView = true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                color: _isListView ? Colors.greenAccent[400] : Colors.transparent,
+              ),
+              child: Row(children: [
+                Icon(CupertinoIcons.list_bullet, size: 16, color: _isListView ? Colors.white : AppColors.primaryDark), 
+                const SizedBox(width: 6),
+                Text('List View', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _isListView ? Colors.white : AppColors.primaryDark))
+              ]),
+            ),
+          ),
         ],
       ),
     );
@@ -203,47 +496,7 @@ class _ExplorePageState extends State<ExplorePage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           // Toggle
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
-                            ),
-                            child: Row(
-                              children: [
-                                GestureDetector(
-                                  onTap: () => setState(() => _isListView = false),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(30),
-                                      color: !_isListView ? Colors.greenAccent[400] : Colors.transparent,
-                                    ),
-                                    child: Row(children: [
-                                      Icon(CupertinoIcons.map, size: 16, color: !_isListView ? Colors.white : AppColors.primaryDark), 
-                                      const SizedBox(width: 6),
-                                      Text('Map View', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: !_isListView ? Colors.white : AppColors.primaryDark))
-                                    ]),
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => setState(() => _isListView = true),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(30),
-                                      color: _isListView ? Colors.greenAccent[400] : Colors.transparent,
-                                    ),
-                                    child: Row(children: [
-                                      Icon(CupertinoIcons.list_bullet, size: 16, color: _isListView ? Colors.white : AppColors.primaryDark), 
-                                      const SizedBox(width: 6),
-                                      Text('List View', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _isListView ? Colors.white : AppColors.primaryDark))
-                                    ]),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          _buildTogglePill(),
                           // Location
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

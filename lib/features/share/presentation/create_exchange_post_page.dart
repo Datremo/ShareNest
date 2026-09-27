@@ -12,6 +12,7 @@ import 'package:demo/core/theme/app_colors.dart';
 import 'package:demo/core/presentation/widgets/animated_flying_button.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/repositories/listing_repository.dart';
+import '../../../core/location/location_autocomplete_field.dart';
 
 class CreateExchangePostPage extends StatefulWidget {
   const CreateExchangePostPage({super.key});
@@ -55,6 +56,8 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
   bool _availableImmediately = false;
   
   final _locationController = TextEditingController();
+  double? _selectedLatitude;
+  double? _selectedLongitude;
   final _tagInputController = TextEditingController();
   final _includedInputController = TextEditingController();
   final List<String> _tags = [];
@@ -177,7 +180,9 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
         condition: _selectedCondition,
         brand: _brandController.text.trim(),
         quantity: int.tryParse(_quantityController.text) ?? 1,
-        locationName: _locationController.text.trim(),
+        locationName: _locationController.text.trim().isNotEmpty ? _locationController.text.trim() : 'Current Location',
+        latitude: _selectedLatitude ?? 18.98,
+        longitude: _selectedLongitude ?? 73.11,
         availability: [
           _availableImmediately ? DateTime.now().toIso8601String() : _availableFrom!.toIso8601String(),
         ],
@@ -547,10 +552,16 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
             // Location
             _buildLabel('Pickup Location *'),
             const SizedBox(height: 8),
-            TextFormField(
+            LocationAutocompleteField(
               controller: _locationController,
-              validator: (v) => v!.isEmpty ? 'Required' : null,
+              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               decoration: _inputDecoration('e.g. My house, Coffee shop on 5th Ave', prefixIcon: Icons.location_on_outlined),
+              onSelected: (suggestion) {
+                setState(() {
+                  _selectedLatitude = suggestion.lat;
+                  _selectedLongitude = suggestion.lon;
+                });
+              },
             ),
             const SizedBox(height: 24),
 
@@ -710,7 +721,9 @@ class _CreateExchangePostPageState extends State<CreateExchangePostPage> {
                         condition: _selectedCondition,
                         brand: _brandController.text.trim(),
                         quantity: int.tryParse(_quantityController.text) ?? 1,
-                        locationName: _locationController.text.trim(),
+                        locationName: _locationController.text.trim().isNotEmpty ? _locationController.text.trim() : 'Current Location',
+                        latitude: _selectedLatitude ?? 18.98,
+                        longitude: _selectedLongitude ?? 73.11,
                         availability: [
                           _availableImmediately ? DateTime.now().toIso8601String() : _availableFrom!.toIso8601String(),
                         ],

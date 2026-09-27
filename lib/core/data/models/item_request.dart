@@ -29,6 +29,9 @@ class ItemRequest {
   @JsonKey(name: 'pickup_time')
   final DateTime? pickupTime;
 
+  @JsonKey(name: 'is_urgent')
+  final bool isUrgent;
+
   ItemRequest({
     required this.id,
     required this.listingId,
@@ -44,6 +47,7 @@ class ItemRequest {
     this.handoffCode,
     this.returnCode,
     this.pickupTime,
+    this.isUrgent = false,
   });
 
   factory ItemRequest.fromJson(Map<String, dynamic> json) =>

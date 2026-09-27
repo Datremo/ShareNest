@@ -73,28 +73,29 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 
   Future<void> _playChoreography() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    final isLoggedIn = session != null;
+    
     // 1. Background appears softly
     _bgController.forward();
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(Duration(milliseconds: isLoggedIn ? 100 : 300));
     
     // 2. Logo emerges
     _logoController.forward();
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(Duration(milliseconds: isLoggedIn ? 100 : 300));
     
     // 3 & 4. Leaf unfolds and sways
     _leafController.forward();
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(Duration(milliseconds: isLoggedIn ? 200 : 600));
     
     // 6. Tagline fades upward
     _textController.forward();
     
     // Wait for reading time
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(Duration(milliseconds: isLoggedIn ? 300 : 1500));
     
     if (mounted) {
-      // Check auth state
-      final session = Supabase.instance.client.auth.currentSession;
-      if (session != null) {
+      if (isLoggedIn) {
         context.go('/home');
       } else {
         context.go('/onboarding');

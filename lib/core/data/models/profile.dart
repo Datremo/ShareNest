@@ -7,6 +7,7 @@ class Profile {
   final String id;
   @JsonKey(name: 'display_name')
   final String displayName;
+  final String? username;
   @JsonKey(name: 'photo_url')
   final String? photoUrl;
   final String? bio;
@@ -33,6 +34,7 @@ class Profile {
   Profile({
     required this.id,
     required this.displayName,
+    this.username,
     this.photoUrl,
     this.bio,
     this.trustScore = 100,

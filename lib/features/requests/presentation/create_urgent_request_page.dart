@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/presentation/widgets/liquid_glass_widgets.dart';
 import '../../../core/data/models/urgent_request.dart';
+import '../../../core/location/location_autocomplete_field.dart';
 
 class CreateUrgentRequestPage extends StatefulWidget {
   const CreateUrgentRequestPage({super.key});
@@ -23,10 +24,14 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
   // Form State
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
+  final _locationController = TextEditingController();
   
   String? _neededBy;
   String? _duration;
   double _radiusKm = 2.0;
+  
+  double? _selectedLat;
+  double? _selectedLng;
   
   TimeOfDay? _specificTime;
   final _customDurationController = TextEditingController();
@@ -53,6 +58,7 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
     _pageController.dispose();
     _titleController.dispose();
     _descController.dispose();
+    _locationController.dispose();
     _customDurationController.dispose();
     _pulseController.dispose();
     super.dispose();
@@ -90,8 +96,8 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
           : (_neededBy ?? 'Right now'),
         'duration': _duration == 'Custom' ? _customDurationController.text : (_duration ?? '30 min'),
         'radius_km': _radiusKm,
-        'lat': 18.98, // Dummy location for now
-        'lng': 73.11, // Dummy location for now
+        'lat': _selectedLat ?? 18.98,
+        'lng': _selectedLng ?? 73.11,
         'status': 'ACTIVE',
         // Example: Expire in 24 hours for safety, or based on 'neededBy'
         'expires_at': DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
@@ -362,8 +368,26 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
         children: [
           Text('Search nearby', style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
           const SizedBox(height: 8),
-          Text('How far are you willing to go to pick it up?', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14)),
-          const SizedBox(height: 48),
+          Text('Where do you need it? And how far should we search?', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14)),
+          const SizedBox(height: 24),
+          LocationAutocompleteField(
+            controller: _locationController,
+            validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+            decoration: InputDecoration(
+              hintText: 'Enter your location',
+              prefixIcon: const Icon(Icons.location_on_outlined),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            ),
+            onSelected: (suggestion) {
+              setState(() {
+                _selectedLat = suggestion.lat;
+                _selectedLng = suggestion.lon;
+              });
+            },
+          ),
+          const SizedBox(height: 32),
           
           Center(
             child: Stack(
@@ -443,7 +467,9 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
                 const SizedBox(height: 16),
                 _buildReviewRow(Icons.timer, 'Borrow for', _duration == 'Custom' ? _customDurationController.text : (_duration ?? '30 min')),
                 const SizedBox(height: 16),
-                _buildReviewRow(Icons.location_on, 'Looking within', '${_radiusKm} km'),
+                _buildReviewRow(Icons.location_on, 'Location', _locationController.text.isNotEmpty ? _locationController.text : 'Current Location'),
+                const SizedBox(height: 16),
+                _buildReviewRow(Icons.radar, 'Looking within', '${_radiusKm} km'),
                 if (_descController.text.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _buildReviewRow(Icons.notes, 'Note', '"${_descController.text}"'),

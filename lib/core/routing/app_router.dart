@@ -15,6 +15,7 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/reset_password_otp_screen.dart';
 import '../../features/profile/presentation/edit_profile_page.dart';
 import '../../features/requests/presentation/urgent_request_detail_page.dart';
+import '../../features/requests/presentation/offer_detail_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/requests/presentation/create_urgent_request_page.dart';
 import '../../features/requests/presentation/live_radar_dashboard.dart';
@@ -24,6 +25,7 @@ import '../../features/activity/presentation/activity_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
 import '../../features/profile/presentation/settings_page.dart';
 import '../../features/profile/presentation/tracking_dashboard_page.dart';
+import '../../features/dashboard/dashboard_page.dart';
 import '../../features/item/presentation/item_detail_page.dart';
 import '../../features/explore/presentation/free_items_page.dart';
 import '../../features/messages/presentation/messages_page.dart';
@@ -56,8 +58,10 @@ import '../../features/requests/presentation/owner_exchange_request_page.dart';
 import '../../features/item/presentation/exchange_completed_page.dart';
 import '../../features/requests/presentation/requester_request_detail_page.dart';
 import '../../features/requests/presentation/request_sent_page.dart';
+import '../../features/profile/presentation/test_map_page.dart';
 import '../../features/explore/presentation/search_results_page.dart';
 import '../../features/share/presentation/review_post_page.dart';
+import '../../features/requests/presentation/request_loader_page.dart';
 import '../../features/share/presentation/post_published_page.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -159,7 +163,22 @@ final GoRouter appRouter = GoRouter(
         );
       },
     ),
-
+    GoRoute(
+      path: '/items/:id',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final listing = state.extra as Listing;
+        return ItemDetailPage(listing: listing);
+      },
+    ),
+    GoRoute(
+      path: '/offer_detail/:id',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return OfferDetailPage(offerId: id);
+      },
+    ),
     GoRoute(
       path: '/messages',
       parentNavigatorKey: _rootNavigatorKey,
@@ -187,6 +206,13 @@ final GoRouter appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
         return const TrackingDashboardPage();
+      },
+    ),
+    GoRoute(
+      path: '/dashboard',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        return const DashboardPage();
       },
     ),
     GoRoute(
@@ -373,6 +399,14 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/owner-request-detail/:id',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return RequestLoaderPage(requestId: id, role: 'owner');
+      },
+    ),
+    GoRoute(
       path: '/requester_request_detail',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
@@ -388,6 +422,14 @@ final GoRouter appRouter = GoRouter(
           request: requestObj,
           listing: listingObj,
         );
+      },
+    ),
+    GoRoute(
+      path: '/requester-request-detail/:id',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return RequestLoaderPage(requestId: id, role: 'requester');
       },
     ),
     GoRoute(
@@ -414,6 +456,10 @@ final GoRouter appRouter = GoRouter(
       path: '/exchange_completed',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const ExchangeCompletedPage(),
+    ),
+    GoRoute(
+      path: '/test-map',
+      builder: (context, state) => const TestMapPage(),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {

@@ -31,6 +31,7 @@ ItemRequest _$ItemRequestFromJson(Map<String, dynamic> json) => ItemRequest(
   pickupTime: json['pickup_time'] == null
       ? null
       : DateTime.parse(json['pickup_time'] as String),
+  isUrgent: json['is_urgent'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$ItemRequestToJson(ItemRequest instance) =>
@@ -49,4 +50,5 @@ Map<String, dynamic> _$ItemRequestToJson(ItemRequest instance) =>
       'handoff_code': instance.handoffCode,
       'return_code': instance.returnCode,
       'pickup_time': instance.pickupTime?.toIso8601String(),
+      'is_urgent': instance.isUrgent,
     };

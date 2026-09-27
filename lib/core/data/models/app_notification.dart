@@ -15,6 +15,8 @@ class AppNotification {
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
   final Map<String, dynamic>? data;
+  @JsonKey(name: 'entity_id')
+  final String? entityId;
 
   const AppNotification({
     required this.id,
@@ -25,6 +27,7 @@ class AppNotification {
     required this.isRead,
     required this.createdAt,
     this.data,
+    this.entityId,
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) =>

@@ -75,6 +75,29 @@ class RequestRepository {
     return List<Map<String, dynamic>>.from(requests);
   }
 
+  Future<List<Map<String, dynamic>>> getIncomingUrgentOffers() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return [];
+
+    final myUrgentRequests = await _client
+        .from('urgent_requests')
+        .select('id')
+        .eq('requester_id', userId);
+    
+    if (myUrgentRequests.isEmpty) return [];
+    
+    final requestIds = myUrgentRequests.map((r) => r['id'] as String).toList();
+
+    final offers = await _client
+        .from('urgent_request_offers')
+        .select('*, urgent_request:urgent_requests!urgent_request_offers_urgent_request_id_fkey(*), profiles!urgent_request_offers_helper_id_fkey(*)')
+        .inFilter('urgent_request_id', requestIds)
+        .eq('status', 'PENDING')
+        .order('created_at', ascending: false);
+        
+    return List<Map<String, dynamic>>.from(offers);
+  }
+
   Future<List<Map<String, dynamic>>> getMyRequestsWithListings() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return [];
@@ -88,6 +111,20 @@ class RequestRepository {
         .order('created_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(requests);
+  }
+
+  Future<List<Map<String, dynamic>>> getMyUrgentOffers() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return [];
+
+    final offers = await _client
+        .from('urgent_request_offers')
+        .select('*, urgent_request:urgent_requests!urgent_request_offers_urgent_request_id_fkey(*, profiles!urgent_requests_requester_id_fkey(*))')
+        .eq('helper_id', userId)
+        .eq('status', 'PENDING')
+        .order('created_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(offers);
   }
 
   Future<void> generateHandoffCode(String requestId, String code) async {

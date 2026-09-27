@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/data/models/listing.dart';
+import '../../../core/data/models/urgent_request.dart';
 import '../../../core/data/repositories/listing_repository.dart';
-import '../../../core/presentation/widgets/liquid_glass_widgets.dart';
 
 class MyPostsPage extends StatefulWidget {
   const MyPostsPage({super.key});
@@ -13,377 +15,362 @@ class MyPostsPage extends StatefulWidget {
   State<MyPostsPage> createState() => _MyPostsPageState();
 }
 
-class _MyPostsPageState extends State<MyPostsPage> {
-  final ListingRepository _listingRepo = ListingRepository();
-  List<Listing> _allListings = [];
+class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   bool _isLoading = true;
   String _selectedFilter = 'All';
-  DateTimeRange? _selectedDateRange;
+
+  List<Listing> _myListings = [];
+  List<UrgentRequest> _myUrgentRequests = [];
+  Map<String, int> _listingRequestCounts = {};
+  Map<String, int> _urgentOfferCounts = {};
 
   @override
   void initState() {
     super.initState();
-    _fetchListings();
+    _tabController = TabController(length: 2, vsync: this);
+    _fetchRealData();
   }
 
-  Future<void> _fetchListings() async {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchRealData() async {
     setState(() => _isLoading = true);
     try {
-      final listings = await _listingRepo.getUserListings();
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception("User not logged in");
+
+      final listingsRes = await Supabase.instance.client
+          .from('listings')
+          .select('*, requests(id)')
+          .eq('owner_id', user.id)
+          .neq('status', 'HIDDEN')
+          .order('created_at', ascending: false);
+
+      final urgentRes = await Supabase.instance.client
+          .from('urgent_requests')
+          .select('*, urgent_request_offers(id)')
+          .eq('requester_id', user.id)
+          .order('created_at', ascending: false);
+
       if (mounted) {
         setState(() {
-          _allListings = listings;
+          _myListings = [];
+          _listingRequestCounts = {};
+          for (var l in listingsRes) {
+            _myListings.add(Listing.fromJson(l));
+            _listingRequestCounts[l['id']] = (l['requests'] as List).length;
+          }
+
+          _myUrgentRequests = [];
+          _urgentOfferCounts = {};
+          for (var u in urgentRes) {
+            _myUrgentRequests.add(UrgentRequest.fromJson(u));
+            _urgentOfferCounts[u['id']] = (u['urgent_request_offers'] as List).length;
+          }
+
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load posts: $e')),
-        );
-      }
+      debugPrint("Error fetching my posts: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   List<Listing> get _filteredListings {
-    var filtered = _allListings;
-    if (_selectedDateRange != null) {
-      filtered = filtered.where((l) {
-        if (l.createdAt == null) return false;
-        return l.createdAt!.isAfter(_selectedDateRange!.start) && l.createdAt!.isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
-      }).toList();
-    }
-    if (_selectedFilter == 'All') return filtered;
-    return filtered.where((l) => l.mode.toUpperCase() == _selectedFilter.toUpperCase()).toList();
-  }
-
-  void _showFilterOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Filter by Date', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
-                if (_selectedDateRange != null)
-                  TextButton(
-                    onPressed: () {
-                      setState(() => _selectedDateRange = null);
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Clear', style: TextStyle(color: Colors.redAccent)),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildDateFilterOption('Yesterday', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 1)), end: DateTime.now())),
-            _buildDateFilterOption('This Week', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 7)), end: DateTime.now())),
-            _buildDateFilterOption('This Month', DateTimeRange(start: DateTime.now().subtract(const Duration(days: 30)), end: DateTime.now())),
-            ListTile(
-              title: const Text('Custom Range...', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
-              trailing: const Icon(Icons.date_range_rounded, color: AppColors.primary),
-              onTap: () async {
-                Navigator.pop(context);
-                final range = await showDateRangePicker(
-                  context: context,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now(),
-                  builder: (context, child) => Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: const ColorScheme.light(primary: AppColors.primary, onPrimary: Colors.white, onSurface: AppColors.primaryDark),
-                    ),
-                    child: child!,
-                  ),
-                );
-                if (range != null) {
-                  setState(() => _selectedDateRange = range);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateFilterOption(String title, DateTimeRange range) {
-    bool isSelected = _selectedDateRange?.start.year == range.start.year && 
-                      _selectedDateRange?.start.month == range.start.month && 
-                      _selectedDateRange?.start.day == range.start.day;
-    return ListTile(
-      title: Text(title, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500, color: AppColors.primaryDark)),
-      trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
-      onTap: () {
-        setState(() => _selectedDateRange = range);
-        Navigator.pop(context);
-      },
-    );
+    if (_selectedFilter == 'All') return _myListings;
+    return _myListings.where((l) => l.mode.toUpperCase() == _selectedFilter.toUpperCase()).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primaryDark),
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1E293B)),
           onPressed: () => context.pop(),
         ),
-        title: const Text('My Posts', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Column(
+          children: [
+            Text('My Posts', style: GoogleFonts.outfit(color: const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 22)),
+            Text('Manage your listings & requests', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 11)),
+          ],
+        ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(
-              _selectedDateRange != null ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
-              color: _selectedDateRange != null ? AppColors.primary : AppColors.primaryDark,
-            ),
-            onPressed: _showFilterOptions,
-          ),
-          const SizedBox(width: 8),
-        ],
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: Colors.grey[500],
+          indicatorColor: AppColors.primary,
+          indicatorWeight: 3,
+          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
+          unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
+          tabs: const [
+            Tab(text: 'Listings'),
+            Tab(text: 'Need It Now'),
+          ],
+        ),
       ),
-      body: Stack(
-        children: [
-          // Background
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white,
-                    AppColors.primaryLight.withValues(alpha: 0.3),
-                    AppColors.primaryLight.withValues(alpha: 0.1),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : TabBarView(
+              controller: _tabController,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: _buildFilterChips(),
-                ),
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                      : _filteredListings.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No posts found.',
-                                style: TextStyle(color: AppColors.primaryDark.withValues(alpha: 0.5), fontSize: 16),
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              itemCount: _filteredListings.length,
-                              itemBuilder: (context, index) {
-                                final listing = _filteredListings[index];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: _buildListingCard(listing),
-                                );
-                              },
-                            ),
-                ),
+                _buildListingsTab(),
+                _buildUrgentTab(),
               ],
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppColors.primary,
         onPressed: () {
-          // You could show a bottom sheet here to select which type to create
-          context.push('/create_lend_post');
+          if (_tabController.index == 0) {
+            context.push('/create_lend_post').then((_) => _fetchRealData());
+          } else {
+            context.push('/create_urgent_request').then((_) => _fetchRealData());
+          }
         },
-        child: const Icon(Icons.add, color: Colors.white),
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: Text(
+          _tabController.index == 0 ? 'New Listing' : 'New Urgent Request',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
       ),
     );
   }
 
-  Widget _buildFilterChips() {
-    final filters = ['All', 'Lend', 'Give', 'Exchange'];
-    return SizedBox(
-      height: 36,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: filters.map((f) {
-          final isSelected = _selectedFilter == f;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedFilter = f),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isSelected ? AppColors.primary : Colors.grey[300]!),
-                  boxShadow: isSelected
-                      ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
-                      : [],
-                ),
-                child: Text(
-                  f,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.primaryDark,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontSize: 13,
+  Widget _buildListingsTab() {
+    return Column(
+      children: [
+        Container(
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: ['All', 'Lend', 'Give'].map((f) {
+              final isSelected = _selectedFilter == f;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedFilter = f),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primary : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: isSelected ? AppColors.primary : Colors.grey[300]!),
+                    ),
+                    child: Text(
+                      f,
+                      style: GoogleFonts.inter(
+                        color: isSelected ? Colors.white : Colors.grey[700],
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            }).toList(),
+          ),
+        ),
+        Expanded(
+          child: _filteredListings.isEmpty
+              ? _buildEmptyState('No listings found', Icons.inventory_2_outlined)
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _filteredListings.length,
+                  itemBuilder: (context, index) => _buildListingCard(_filteredListings[index]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUrgentTab() {
+    return _myUrgentRequests.isEmpty
+        ? _buildEmptyState('No urgent requests found', Icons.bolt_rounded)
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            physics: const BouncingScrollPhysics(),
+            itemCount: _myUrgentRequests.length,
+            itemBuilder: (context, index) => _buildUrgentCard(_myUrgentRequests[index]),
           );
-        }).toList(),
+  }
+
+  Widget _buildEmptyState(String message, IconData icon) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey[200]),
+            child: Icon(icon, size: 48, color: Colors.grey[400]),
+          ),
+          const SizedBox(height: 16),
+          Text(message, style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 16, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
 
   Widget _buildListingCard(Listing listing) {
-    Color badgeColor;
-    switch (listing.mode.toUpperCase()) {
-      case 'LEND':
-        badgeColor = AppColors.success;
-        break;
-      case 'GIVE':
-        badgeColor = AppColors.error;
-        break;
-      case 'EXCHANGE':
-        badgeColor = AppColors.warning;
-        break;
-      default:
-        badgeColor = AppColors.primary;
-    }
-
+    Color badgeColor = listing.mode.toUpperCase() == 'LEND' ? const Color(0xFF10B981) : const Color(0xFFF43F5E);
     final hasImage = listing.photoUrls.isNotEmpty;
-    final imageUrl = hasImage ? listing.photoUrls.first : null;
+    final reqCount = _listingRequestCounts[listing.id] ?? 0;
 
     return GestureDetector(
-      onTap: () async {
-        await context.push('/item', extra: listing);
-        _fetchListings(); // Refresh if edited/deleted
-      },
-      child: GlassCard(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: AppColors.primaryLight.withValues(alpha: 0.2),
+      onTap: () => context.push('/item', extra: listing).then((_) => _fetchRealData()),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey[200]!),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(16)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: hasImage
+                      ? Image.network(listing.photoUrls.first, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
+                      : const Icon(Icons.image, color: Colors.grey),
+                ),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: hasImage
-                    ? Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
-                    : const Icon(Icons.image, color: AppColors.primary, size: 40),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                          child: Text(listing.mode.toUpperCase(), style: GoogleFonts.inter(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: listing.status == 'ACTIVE' ? const Color(0xFF10B981).withValues(alpha: 0.1) : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(6)
+                          ),
+                          child: Text(listing.status, style: GoogleFonts.inter(
+                            color: listing.status == 'ACTIVE' ? const Color(0xFF10B981) : Colors.grey[600],
+                            fontSize: 10, fontWeight: FontWeight.bold
+                          )),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(listing.title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.people_alt_outlined, size: 14, color: Colors.grey[500]),
+                        const SizedBox(width: 4),
+                        Text('$reqCount requests', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                        const Spacer(),
+                        Text(DateFormat('MMM d').format(listing.createdAt ?? DateTime.now()), style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[400])),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            // Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUrgentCard(UrgentRequest request) {
+    final offerCount = _urgentOfferCounts[request.id] ?? 0;
+    return GestureDetector(
+      onTap: () => context.push('/urgent_request/${request.id}').then((_) => _fetchRealData()),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey[200]!),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: badgeColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
-                        ),
-                        child: Text(
-                          listing.mode.toUpperCase(),
-                          style: TextStyle(
-                            color: badgeColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: listing.status == 'ACTIVE' ? AppColors.success.withValues(alpha: 0.1) : AppColors.grey200,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          listing.status,
-                          style: TextStyle(
-                            color: listing.status == 'ACTIVE' ? AppColors.success : Colors.grey[600],
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    listing.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryDark,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Created: ${DateFormat('MMM d, yyyy').format(listing.createdAt ?? DateTime.now())}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: const Color(0xFFEF4444).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt_rounded, size: 12, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 4),
+                        Text('NEED IT NOW', style: GoogleFonts.inter(color: const Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold)),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          listing.locationName ?? 'No location',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: request.status == 'ACTIVE' ? const Color(0xFF10B981).withValues(alpha: 0.1) : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(6)
+                    ),
+                    child: Text(request.status, style: GoogleFonts.inter(
+                      color: request.status == 'ACTIVE' ? const Color(0xFF10B981) : Colors.grey[600],
+                      fontSize: 10, fontWeight: FontWeight.bold
+                    )),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(request.title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.local_offer_outlined, size: 12, color: Colors.blue),
+                        const SizedBox(width: 4),
+                        Text('$offerCount offers', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue)),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.access_time_filled, size: 14, color: Colors.grey[400]),
+                  const SizedBox(width: 4),
+                  Text('Needed by ${request.neededBy ?? 'ASAP'}', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[500])),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

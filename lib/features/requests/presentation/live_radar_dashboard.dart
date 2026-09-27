@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/data/models/urgent_request.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import '../../../core/maps/sharenest_map.dart';
 
 class UrgentRequestWithProfile {
   final UrgentRequest request;
@@ -27,6 +28,7 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
   List<UrgentRequestWithProfile> _urgentRequests = [];
   RealtimeChannel? _requestsChannel;
   String _selectedFilter = 'All';
+  bool _isListView = true;
 
   @override
   void initState() {
@@ -164,7 +166,349 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
           )
         ],
       ),
-      body: Container(
+      body: !_isListView ? _buildMapView() : _buildListView(),
+    );
+  }
+
+  Widget _buildMapView() {
+    final filteredRequests = _urgentRequests.where((wrapper) {
+      final req = wrapper.request;
+      if (_selectedFilter == 'All') return true;
+      final level = _getUrgencyLevel(req.neededBy);
+      if (_selectedFilter == 'Need it now' && level == UrgencyLevel.now) return true;
+      if (_selectedFilter == 'Soon' && level == UrgencyLevel.soon) return true;
+      if (_selectedFilter == 'Flexible' && level == UrgencyLevel.flexible) return true;
+      return false;
+    }).toList();
+
+    int countNow = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.now).length;
+    int countSoon = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.soon).length;
+    int countFlex = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.flexible).length;
+
+    final mapItems = filteredRequests.map((r) => {
+      'id': r.request.id,
+      'title': r.request.title,
+      'urgency': _getUrgencyLevel(r.request.neededBy).name,
+      'lat': r.request.lat,
+      'lng': r.request.lng,
+      'wrapper': r,
+    }).toList();
+
+    double searchRadiusMeters = 500; // default for now
+
+    return Stack(
+      children: [
+        ShareNestMap(
+          mode: MapMode.liveRequests,
+          items: mapItems,
+          searchRadiusMeters: searchRadiusMeters,
+          onMarkerTapped: (data) {
+             _showRequestBottomSheet(data['wrapper'] as UrgentRequestWithProfile);
+          },
+        ),
+        
+        // Top Gradient for readability
+        Positioned(
+          top: 0, left: 0, right: 0, height: 180,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
+              ),
+            ),
+          ),
+        ),
+
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 60.0, left: 24.0, right: 24.0, bottom: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text('Live Requests', style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: const Color(0xFF00C853).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF00C853))),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF00C853), shape: BoxShape.circle, boxShadow: [BoxShadow(color: Color(0xFF00C853), blurRadius: 4)])),
+                          const SizedBox(width: 6),
+                          Text('Live', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF00C853))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('Real people. Real needs. Help your neighbours right now.', style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
+                
+                const SizedBox(height: 24),
+                
+                // Controls Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildTogglePill(),
+                    _buildRadiusDropdown(),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Bottom Urgency Filters
+        Positioned(
+          bottom: 32, left: 24, right: 24,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 20)],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildMapBottomBadge(countNow, 'Need it now', const Color(0xFFFF4B4B), '0-1 hour', 1),
+                _buildMapBottomBadge(countSoon, 'Need soon', const Color(0xFFFF9500), '1-6 hours', 2),
+                _buildMapBottomBadge(countFlex, 'Flexible', const Color(0xFF34C759), 'Anytime', 3),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showRequestBottomSheet(UrgentRequestWithProfile wrapper) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5), width: 1),
+            boxShadow: [
+              BoxShadow(color: Colors.redAccent.withValues(alpha: 0.2), blurRadius: 30, spreadRadius: 5),
+            ],
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF4B4B).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.bolt, color: Color(0xFFFF4B4B), size: 14),
+                        const SizedBox(width: 4),
+                        Text(_getUrgencyLabel(_getUrgencyLevel(wrapper.request.neededBy)), style: GoogleFonts.inter(color: const Color(0xFFFF4B4B), fontSize: 12, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white54),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  )
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(wrapper.request.title, style: GoogleFonts.poppins(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+              if (wrapper.request.description != null) ...[
+                const SizedBox(height: 6),
+                Text(wrapper.request.description!, style: GoogleFonts.inter(color: Colors.white70, fontSize: 14)),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildMiniInfo(Icons.navigation, '~450 m', Colors.white54),
+                  const SizedBox(width: 16),
+                  _buildMiniInfo(Icons.access_time, wrapper.request.neededBy ?? '', const Color(0xFFFF9500)),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF4B4B),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.touch_app),
+                          const SizedBox(width: 8),
+                          Text('View Details', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.navigation, size: 20),
+                        const SizedBox(width: 8),
+                        Text('Navigate', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniInfo(IconData icon, String text, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+          child: Icon(icon, size: 12, color: color),
+        ),
+        const SizedBox(width: 6),
+        Text(text, style: GoogleFonts.inter(color: color, fontSize: 13, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _buildRadiusDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Text('500 m', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 8),
+          const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 18),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapBottomBadge(int count, String title, Color color, String subtitle, int num) {
+    return Row(
+      children: [
+        Container(
+          width: 24, height: 24,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: Center(child: Text('$num', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
+        ),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+            Text(subtitle, style: GoogleFonts.inter(color: Colors.white54, fontSize: 10)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTogglePill() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () => setState(() => _isListView = false),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: !_isListView ? const Color(0xFF064B34) : Colors.transparent,
+                borderRadius: BorderRadius.circular(26),
+              ),
+              child: Row(children: [
+                Icon(Icons.map_rounded, size: 16, color: !_isListView ? Colors.white : Colors.grey), 
+                const SizedBox(width: 8), 
+                Text('Map View', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: !_isListView ? Colors.white : Colors.grey))
+              ]),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => setState(() => _isListView = true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: _isListView ? const Color(0xFF064B34) : Colors.transparent,
+                borderRadius: BorderRadius.circular(26),
+              ),
+              child: Row(children: [
+                Icon(Icons.format_list_bulleted_rounded, size: 16, color: _isListView ? Colors.white : Colors.grey), 
+                const SizedBox(width: 8), 
+                Text('List View', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _isListView ? Colors.white : Colors.grey))
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListView() {
+    final filteredRequests = _urgentRequests.where((wrapper) {
+      final req = wrapper.request;
+      if (_selectedFilter == 'All') return true;
+      final level = _getUrgencyLevel(req.neededBy);
+      if (_selectedFilter == 'Need it now' && level == UrgencyLevel.now) return true;
+      if (_selectedFilter == 'Soon' && level == UrgencyLevel.soon) return true;
+      if (_selectedFilter == 'Flexible' && level == UrgencyLevel.flexible) return true;
+      return false;
+    }).toList();
+
+    int countNow = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.now).length;
+    int countSoon = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.soon).length;
+    int countFlex = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.flexible).length;
+
+    return Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/images/sunset_balcony.jpg'),
@@ -185,8 +529,7 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
               SliverToBoxAdapter(
                 child: Stack(
                   children: [
-                    // Banner image - commented out since we have a global background now, but we can keep a gradient header if we want.
-                    // Actually, the previous explore_banner is nice. Let's keep the explore_banner at the top but with a transparent blend.
+                    // Banner image
                     Container(
                       height: 320,
                       decoration: const BoxDecoration(
@@ -232,24 +575,7 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
                     
                     // Map/List Toggle
                     Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                              child: Row(children: [const Icon(Icons.map_rounded, size: 16, color: Colors.grey), const SizedBox(width: 8), Text('Map View', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey))]),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                              decoration: BoxDecoration(color: const Color(0xFF064B34), borderRadius: BorderRadius.circular(26)),
-                              child: Row(children: [const Icon(Icons.format_list_bulleted_rounded, size: 16, color: Colors.white), const SizedBox(width: 8), Text('List View', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white))]),
-                            ),
-                          ],
-                        ),
-                      ),
+                      child: _buildTogglePill(),
                     ),
                     
                     const SizedBox(height: 24),
@@ -366,8 +692,7 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildMiniBadge(int count, String label, Color color) {

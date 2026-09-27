@@ -23,18 +23,22 @@ class ProfileRepository {
   /// Updates the profile for the currently logged in user
   Future<void> updateProfile({
     required String displayName,
+    String? username,
     String? bio,
     String? photoUrl,
     String? locationName,
+    List<String>? interests,
   }) async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('Must be logged in to update profile');
 
     final updates = {
       'display_name': displayName,
-      'bio': ?bio,
-      'photo_url': ?photoUrl,
-      'location_name': ?locationName,
+      'username': username,
+      'bio': bio,
+      'photo_url': photoUrl,
+      'location_name': locationName,
+      if (interests != null) 'interests': interests,
       'updated_at': DateTime.now().toIso8601String(),
     };
 

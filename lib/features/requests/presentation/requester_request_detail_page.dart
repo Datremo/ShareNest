@@ -210,6 +210,13 @@ class _RequesterRequestDetailPageState extends State<RequesterRequestDetailPage>
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.request.isUrgent)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: const Color(0xFFFF4B4B), borderRadius: BorderRadius.circular(4)),
+                        child: const Text('URGENT REQUEST', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
                     const Text('ORDER ID', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                     const SizedBox(height: 4),
                     Text('#$orderId', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),

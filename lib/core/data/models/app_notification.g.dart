@@ -16,6 +16,7 @@ AppNotification _$AppNotificationFromJson(Map<String, dynamic> json) =>
       isRead: json['is_read'] as bool,
       createdAt: DateTime.parse(json['created_at'] as String),
       data: json['data'] as Map<String, dynamic>?,
+      entityId: json['entity_id'] as String?,
     );
 
 Map<String, dynamic> _$AppNotificationToJson(AppNotification instance) =>
@@ -28,4 +29,5 @@ Map<String, dynamic> _$AppNotificationToJson(AppNotification instance) =>
       'is_read': instance.isRead,
       'created_at': instance.createdAt.toIso8601String(),
       'data': instance.data,
+      'entity_id': instance.entityId,
     };

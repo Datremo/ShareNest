@@ -13,6 +13,9 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _interestsController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _agreeTerms = true;
@@ -30,14 +33,40 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await Supabase.instance.client.auth.signUp(
+      final res = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
+        data: {
+          'first_name': _firstNameController.text.trim(),
+          'last_name': _lastNameController.text.trim(),
+          'username': _usernameController.text.trim(),
+          'location_name': _locationController.text.trim(),
+        },
       );
+      
+      final userId = res.user?.id;
+      if (userId != null) {
+          final interestsList = _interestsController.text
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+
+          await Supabase.instance.client.from('profiles').update({
+             'full_name': '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
+             'display_name': _firstNameController.text.trim(),
+             'username': _usernameController.text.trim(),
+             'location_name': _locationController.text.trim(),
+             if (interestsList.isNotEmpty) 'interests': interestsList,
+          }).eq('id', userId);
+      }
+
       // Wait a bit, then pop back. AuthGate will automatically redirect to HomePage
       if (mounted) Navigator.pop(context);
     } on AuthException catch (e) {
       _showMessage(e.message ?? 'Signup failed. Please try again.');
+    } catch (e) {
+      _showMessage('An error occurred during signup.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -140,28 +169,25 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(12),
+            _buildTextField(controller: _usernameController, hint: 'Username (unique)', icon: Icons.alternate_email),
+            const SizedBox(height: 16),
+            _buildTextField(controller: _locationController, hint: 'Your area / neighbourhood', icon: Icons.location_on_outlined),
+            const SizedBox(height: 4),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.only(left: 12.0),
+                child: Text('Helps us show relevant listings near you.', style: TextStyle(fontSize: 11, color: Colors.grey)),
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.location_on_outlined, color: Colors.grey, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('Your area / neighbourhood', style: TextStyle(fontSize: 14, color: Colors.black54)),
-                        SizedBox(height: 4),
-                        Text('Helps us show relevant listings near you.', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right, color: Colors.grey),
-                ],
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(controller: _interestsController, hint: 'Interests (comma separated)', icon: Icons.favorite_border),
+            const SizedBox(height: 4),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.only(left: 12.0),
+                child: Text('e.g. Tools, Gardening, Books', style: TextStyle(fontSize: 11, color: Colors.grey)),
               ),
             ),
             const SizedBox(height: 24),

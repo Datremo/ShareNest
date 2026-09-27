@@ -21,6 +21,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _newAvatarUrl;
 
   final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _bioController = TextEditingController();
   final _locationController = TextEditingController();
   final _interestController = TextEditingController();
@@ -47,6 +48,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final profile = await _profileRepo.getProfile(_userId!);
     if (profile != null) {
       _nameController.text = profile.displayName;
+      _usernameController.text = profile.username ?? '';
       _bioController.text = profile.bio ?? '';
       _locationController.text = profile.locationName ?? '';
       _newAvatarUrl = profile.photoUrl;
@@ -110,10 +112,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       await _profileRepo.updateProfile(
         displayName: _nameController.text.trim(),
+        username: _usernameController.text.trim(),
         bio: _bioController.text.trim(),
         photoUrl: _newAvatarUrl,
         locationName: _locationController.text.trim(),
-              );
+        interests: _interests,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated!')));
         context.pop();
@@ -233,6 +237,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   _buildTextField(
                     label: 'Full Name',
                     controller: _nameController,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildTextField(
+                    label: 'Username',
+                    controller: _usernameController,
+                    hintText: 'e.g. johndoe',
+                    icon: Icons.alternate_email,
                   ),
                   const SizedBox(height: 24),
                   _buildTextField(

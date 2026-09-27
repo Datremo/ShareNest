@@ -9,6 +9,7 @@ import '../../../core/data/repositories/profile_repository.dart';
 import '../../../core/data/repositories/listing_repository.dart';
 import '../../../core/data/repositories/request_repository.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/location/location_core.dart';
 
 class ProfilePage extends StatefulWidget {
   final String? userId;
@@ -22,6 +23,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   final _profileRepo = ProfileRepository();
   final _listingRepo = ListingRepository();
   final _requestRepo = RequestRepository();
+
+  bool get _isCurrentUser => widget.userId == null || widget.userId == Supabase.instance.client.auth.currentUser?.id;
 
   bool _isLoading = true;
   Profile? _profile;
@@ -39,9 +42,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     if (userId == null) return;
 
     try {
-      final profile = await _profileRepo.getProfile(userId);
-      final stats = await _profileRepo.getProfileStats(userId);
-      final allMyListings = await _listingRepo.getUserListings();
+      final results = await Future.wait([
+        _profileRepo.getProfile(userId),
+        _profileRepo.getProfileStats(userId),
+        _listingRepo.getUserListings(),
+      ]);
+
+      final profile = results[0] as Profile?;
+      final stats = results[1] as Map<String, int>;
+      final allMyListings = results[2] as List<Listing>;
 
       if (mounted) {
         setState(() {
@@ -79,6 +88,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FC),
+      extendBodyBehindAppBar: true,
+      appBar: !_isCurrentUser ? AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+      ) : null,
       body: SingleChildScrollView(
         padding: EdgeInsets.zero,
         physics: const ClampingScrollPhysics(),
@@ -88,13 +106,17 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             
             _buildCommunityImpact(),
             const SizedBox(height: 20),
-            _buildDashboardButtons(context),
-            const SizedBox(height: 20),
+            if (_isCurrentUser) ...[
+              _buildDashboardButtons(context),
+              const SizedBox(height: 20),
+            ],
             if (_activeListings.isNotEmpty) _buildActiveNow(),
             const SizedBox(height: 20),
-            _buildSavedItems(),
-            const SizedBox(height: 24),
-            _buildLogoutButton(context),
+            if (_isCurrentUser) ...[
+              _buildSavedItems(),
+              const SizedBox(height: 24),
+              _buildLogoutButton(context),
+            ],
             const SizedBox(height: 100), // padding for bottom nav
           ],
         ),
@@ -129,22 +151,23 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           ),
         ),
         // Settings Button top right
-        Positioned(
-          top: 45,
-          right: 20,
-          child: GestureDetector(
-            onTap: () => context.push('/settings'),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.8),
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+        if (_isCurrentUser)
+          Positioned(
+            top: 45,
+            right: 20,
+            child: GestureDetector(
+              onTap: () => context.push('/settings'),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+                ),
+                child: const Icon(Icons.settings, color: AppColors.primaryDark, size: 22),
               ),
-              child: const Icon(Icons.settings, color: AppColors.primaryDark, size: 22),
             ),
           ),
-        ),
         
         // Main Content Container
         Padding(
@@ -204,30 +227,55 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                       const Icon(Icons.verified, color: Colors.blue, size: 20),
                     ],
                   ),
-                  Positioned(
-                    right: 20,
-                    child: GestureDetector(
-                      onTap: () => context.push('/edit_profile'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.edit, size: 14, color: Color(0xFF1E293B)),
-                            const SizedBox(width: 6),
-                            Text('Edit Profile', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B))),
-                          ],
+                  if (_isCurrentUser)
+                    Positioned(
+                      right: 20,
+                      child: GestureDetector(
+                        onTap: () => context.push('/edit_profile'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.edit, size: 14, color: Color(0xFF1E293B)),
+                              const SizedBox(width: 6),
+                              Text('Edit', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B))),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
+              if (_isCurrentUser)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      context.push('/test-map');
+                    },
+                    icon: const Icon(Icons.map, size: 18),
+                    label: Text('Open Test Map (MapLibre)', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                ),
+              if (_profile?.username != null && _profile!.username!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  '@${_profile!.username}',
+                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xFF64748B)),
+                ),
+              ],
               const SizedBox(height: 6),
               // Location & Member since
               Row(
@@ -235,7 +283,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 children: [
                   const Icon(Icons.location_on, size: 12, color: Color(0xFF64748B)),
                   const SizedBox(width: 4),
-                  Text('Mumbai, Maharashtra', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                  Text(_profile?.locationName ?? 'Unknown Location', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w600)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -402,7 +450,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         children: [
           // My Dashboard Button
           GestureDetector(
-            onTap: () => context.push('/tracking_dashboard'),
+            onTap: () => context.push('/dashboard'),
             child: Container(
               height: 70,
               decoration: BoxDecoration(

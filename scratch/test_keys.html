@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head></head>
+<body>
+  <script>
+    function testKey(key) {
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initMap_${key}`;
+        script.async = true;
+        
+        window[`initMap_${key}`] = function() {
+          resolve({key, status: 'success'});
+        };
+        
+        window.gm_authFailure = function() {
+          // This might be called globally, tricky to map to specific key if concurrent
+        };
+
+        script.onerror = () => resolve({key, status: 'error'});
+        document.body.appendChild(script);
+      });
+    }
+  </script>
+</body>
+</html>

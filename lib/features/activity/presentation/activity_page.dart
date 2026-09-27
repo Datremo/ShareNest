@@ -122,19 +122,25 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
         _requestRepo.getIncomingRequestsWithListings(),
         _requestRepo.getMyRequestsWithListings(),
         _notificationRepo.getNotifications(),
+        _requestRepo.getIncomingUrgentOffers(),
+        _requestRepo.getMyUrgentOffers(),
       ]);
       if (mounted) {
         setState(() {
           final rawIncoming = results[0] as List<Map<String, dynamic>>;
           final rawOutgoing = results[1] as List<Map<String, dynamic>>;
+          final rawIncomingUrgent = results[3] as List<Map<String, dynamic>>;
+          final rawOutgoingUrgent = results[4] as List<Map<String, dynamic>>;
           
           bool filterCompleted(Map<String, dynamic> req) {
-            // Removed 24 hour filter so we see complete history
             return true;
           }
           
-          _incomingRequests = rawIncoming.where(filterCompleted).toList();
-          _outgoingRequests = rawOutgoing.where(filterCompleted).toList();
+          final mappedIncomingUrgent = rawIncomingUrgent.map((e) => {...e, '_is_urgent_offer': true}).toList();
+          final mappedOutgoingUrgent = rawOutgoingUrgent.map((e) => {...e, '_is_urgent_offer': true}).toList();
+          
+          _incomingRequests = [...rawIncoming.where(filterCompleted), ...mappedOutgoingUrgent];
+          _outgoingRequests = [...rawOutgoing.where(filterCompleted), ...mappedIncomingUrgent];
           
           if (_notifications.isEmpty) {
             _notifications = results[2] as List<AppNotification>;
@@ -261,14 +267,23 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
         onTap: () {
           // Mark this individual notification as read when clicked
           if (!notif.isRead) _notificationRepo.markAsRead(notif.id);
-          final reqId = notif.data?['request_id'];
-          if (reqId != null) {
-            if (notif.type == 'request_received') {
-              context.push('/owner-request-detail/$reqId').then((_) => _loadData());
-            } else {
-              context.push('/requester-request-detail/$reqId').then((_) => _loadData());
+          final reqId = notif.entityId ?? notif.data?['request_id'];
+            if (reqId != null) {
+              final ownerTypes = [
+                'request_received', 
+                'handoff_pin_generated', 
+                'return_requested', 
+                'return_pin_generated'
+              ];
+              
+              if (ownerTypes.contains(notif.type)) {
+                context.push('/owner-request-detail/$reqId').then((_) => _loadData());
+              } else if (notif.type == 'urgent_offer_received') {
+                context.push('/my_sos_signals').then((_) => _loadData());
+              } else {
+                context.push('/requester-request-detail/$reqId').then((_) => _loadData());
+              }
             }
-          }
         },
         child: _buildNotificationItem(notif),
       ),
@@ -405,6 +420,26 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
         delegate: SliverChildBuilderDelegate(
           (context, index) {
             final data = sortedRequests[index];
+            final isUrgent = data['_is_urgent_offer'] == true;
+            
+            if (isUrgent) {
+               final profileData = isIncoming ? data['urgent_request']['profiles'] : data['profiles'];
+               return StaggeredListItem(
+                 index: index,
+                 child: PhysicsCard(
+                   onTap: () async {
+                     // Route to urgent request detail
+                     final urgentReq = data['urgent_request'];
+                     if (urgentReq != null && urgentReq['id'] != null) {
+                       await context.push('/urgent_request_detail/${urgentReq['id']}');
+                     }
+                     if (mounted) _loadData();
+                   },
+                   child: _buildUrgentOfferItem(data, profileData, isIncoming),
+                 ),
+               );
+            }
+            
             final profileData = isIncoming ? data['profiles'] : data['listing']['profiles'];
             
             return StaggeredListItem(
@@ -426,10 +461,7 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
                       'listing': listing,
                     });
                   }
-                  // Refresh data when returning from detail page
-                  if (mounted) {
-                    _loadData();
-                  }
+                  if (mounted) _loadData();
                 },
                 child: _buildRequestItem(
                   request: ItemRequest.fromJson(data),
@@ -546,6 +578,99 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
                         color: Colors.black.withValues(alpha: 0.5),
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildUrgentOfferItem(Map<String, dynamic> data, Map<String, dynamic> profileData, bool isIncoming) {
+    Color statusColor = _getStatusColor(data['status']);
+    final urgentReq = data['urgent_request'];
+    final profileName = profileData['display_name'] ?? 'Neighbour';
+    
+    return GlassCard(
+      child: Row(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.red.withValues(alpha: 0.1),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))
+              ],
+            ),
+            child: const Icon(Icons.bolt_rounded, color: Colors.red, size: 30),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        urgentReq['title'] ?? 'Urgent Request',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          color: Colors.black87,
+                          letterSpacing: -0.3,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.2), width: 1),
+                      ),
+                      child: Text(
+                        (data['status'] as String).toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: statusColor,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isIncoming ? "Offer to: $profileName" : "Offer from: $profileName",
+                  style: TextStyle(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.bolt_rounded, size: 12, color: Colors.red.withValues(alpha: 0.6)),
+                    const SizedBox(width: 4),
+                    Text(
+                      "Urgent Offer",
+                      style: TextStyle(
+                        color: Colors.red.withValues(alpha: 0.8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],

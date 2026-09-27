@@ -9,6 +9,7 @@ part of 'profile.dart';
 Profile _$ProfileFromJson(Map<String, dynamic> json) => Profile(
   id: json['id'] as String,
   displayName: json['display_name'] as String,
+  username: json['username'] as String?,
   photoUrl: json['photo_url'] as String?,
   bio: json['bio'] as String?,
   trustScore: (json['trust_score'] as num?)?.toInt() ?? 100,
@@ -30,6 +31,7 @@ Profile _$ProfileFromJson(Map<String, dynamic> json) => Profile(
 Map<String, dynamic> _$ProfileToJson(Profile instance) => <String, dynamic>{
   'id': instance.id,
   'display_name': instance.displayName,
+  'username': instance.username,
   'photo_url': instance.photoUrl,
   'bio': instance.bio,
   'trust_score': instance.trustScore,

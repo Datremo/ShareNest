@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test</title>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCVf0EriwuMaiXjUgdpw1gg6YXAuWTFrUg&libraries=places"></script>
+</head>
+<body>
+  <script>
+    setTimeout(() => {
+      var service = new google.maps.places.AutocompleteService();
+      service.getPlacePredictions({ input: 'tapal' }, function(predictions, status) {
+        console.log(status);
+        console.log(predictions);
+      });
+    }, 1000);
+  </script>
+</body>
+</html>
