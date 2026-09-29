@@ -8,6 +8,8 @@ import '../../../core/data/models/listing.dart';
 import '../../../core/data/models/profile.dart';
 import '../../../core/data/repositories/request_repository.dart';
 import '../../../core/data/repositories/profile_repository.dart';
+import '../../../core/data/repositories/chat_repository.dart';
+import '../../messages/presentation/conversation_page.dart';
 
 class RequesterRequestDetailPage extends StatefulWidget {
   final ItemRequest request;
@@ -443,7 +445,31 @@ class _RequesterRequestDetailPageState extends State<RequesterRequestDetailPage>
               ),
             ),
             IconButton(
-              onPressed: () => context.push('/chat', extra: profile),
+              onPressed: () async {
+                 final chatRepo = ChatRepository();
+                 try {
+                   final convId = await chatRepo.createOrGetConversation(
+                      contextType: 'item_request',
+                      contextId: widget.request.id,
+                      otherUserId: profile.id,
+                   );
+                   if (context.mounted) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => ConversationPage(
+                            conversationId: convId ?? '',
+                            otherUserName: profile.displayName,
+                            contextLabel: 'Context: ${widget.listing.title}',
+                          ),
+                        ),
+                      );
+                   }
+                 } catch (e) {
+                   if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error starting chat: $e')));
+                   }
+                 }
+              },
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                 padding: const EdgeInsets.all(12),
@@ -458,23 +484,42 @@ class _RequesterRequestDetailPageState extends State<RequesterRequestDetailPage>
 
   Widget _buildActionButtons() {
     if (_currentStatus == 'PENDING') {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.amber.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-        ),
-        child: const Center(
-          child: Text('Waiting for owner approval...', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
-        ),
+      return Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+            ),
+            child: const Center(
+              child: Text('Waiting for owner approval...', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () => _cancelRequest(),
+              child: const Text('Cancel Request', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
       );
     }
 
     if (_currentStatus == 'ACCEPTED') {
+      Widget mainAction;
       if (_handoffCode != null) {
-        return Column(
+        mainAction = Column(
           children: [
             const Text('Your Handoff Code', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
             const SizedBox(height: 16),
@@ -487,19 +532,40 @@ class _RequesterRequestDetailPageState extends State<RequesterRequestDetailPage>
             ),
           ],
         );
-      }
-      return SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 0,
+      } else {
+        mainAction = SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 0,
+            ),
+            onPressed: () => _generateCode(isReturn: false),
+            child: const Text('Generate Handoff Code', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
           ),
-          onPressed: () => _generateCode(isReturn: false),
-          child: const Text('Generate Handoff Code', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        ),
+        );
+      }
+      
+      return Column(
+        children: [
+          mainAction,
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () => _cancelRequest(),
+              child: const Text('Cancel Transaction', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
       );
     }
     
@@ -537,6 +603,50 @@ class _RequesterRequestDetailPageState extends State<RequesterRequestDetailPage>
     }
 
     return const SizedBox.shrink();
+  }
+
+  Future<void> _cancelRequest() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Transaction'),
+        content: const Text('Are you sure you want to cancel this transaction? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: const Text('Cancel Transaction', style: TextStyle(color: Colors.red))
+          ),
+        ],
+      )
+    );
+    
+    if (confirm != true) return;
+    
+    try {
+      await _requestRepo.updateRequestStatus(widget.request.id, 'CANCELLED');
+      setState(() { _currentStatus = 'CANCELLED'; });
+      
+      try {
+        final chatRepo = ChatRepository();
+        final convId = await chatRepo.createOrGetConversation(
+            contextType: 'item_request',
+            contextId: widget.request.id,
+            otherUserId: widget.listing.ownerId,
+        );
+        await chatRepo.sendMessage(
+            conversationId: convId ?? '',
+            content: 'Transaction cancelled.',
+            messageType: 'SYSTEM',
+        );
+      } catch (e) {
+        print('Error sending cancel message: $e');
+      }
+      
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request cancelled')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   Future<void> _generateCode({required bool isReturn}) async {

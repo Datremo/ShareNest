@@ -21,6 +21,8 @@ class Profile {
   final int successfulExchanges;
   final List<String>? interests;
 
+  @JsonKey(name: 'created_at')
+  final DateTime? createdAt;
   @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
   @JsonKey(name: 'is_verified')
@@ -42,6 +44,7 @@ class Profile {
     this.itemsShared = 0,
     this.successfulExchanges = 0,
     this.interests,
+    this.createdAt,
     this.updatedAt,
     this.isVerified = false,
     this.rating = 0.0,

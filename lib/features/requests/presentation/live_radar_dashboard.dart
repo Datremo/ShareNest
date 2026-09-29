@@ -5,7 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/data/models/urgent_request.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import '../../../core/location/location_autocomplete_field.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 import '../../../core/maps/sharenest_map.dart';
+import 'dart:async';
 
 class UrgentRequestWithProfile {
   final UrgentRequest request;
@@ -27,8 +30,18 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
   bool _isLoading = true;
   List<UrgentRequestWithProfile> _urgentRequests = [];
   RealtimeChannel? _requestsChannel;
+  bool _isListView = false;
   String _selectedFilter = 'All';
-  bool _isListView = true;
+
+  // New state variables
+  int _searchRadiusMeters = 500;
+  Set<UrgencyLevel> _activeFilters = {};
+  UrgentRequestWithProfile? _selectedRequest;
+  int _liveCount = 0;
+  bool _showNewRequestToast = false;
+  Timer? _toastTimer;
+  geo.Position? _mapCenter;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -45,10 +58,23 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
         schema: 'public',
         table: 'urgent_requests',
         callback: (payload) {
+          if (payload.eventType == PostgresChangeEvent.insert) {
+            _triggerToast();
+          }
           _loadData();
         }
       )
       .subscribe();
+  }
+
+  void _triggerToast() {
+    if (mounted) {
+      setState(() => _showNewRequestToast = true);
+      _toastTimer?.cancel();
+      _toastTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _showNewRequestToast = false);
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -75,7 +101,9 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     _requestsChannel?.unsubscribe();
+    _toastTimer?.cancel();
     super.dispose();
   }
 
@@ -90,14 +118,6 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
     return UrgencyLevel.flexible;
   }
 
-  Color _getUrgencyColor(UrgencyLevel level) {
-    switch (level) {
-      case UrgencyLevel.now: return const Color(0xFFFF4B4B);
-      case UrgencyLevel.soon: return const Color(0xFFFF9500);
-      case UrgencyLevel.flexible: return const Color(0xFF34C759);
-    }
-  }
-
   String _getUrgencyLabel(UrgencyLevel level) {
     switch (level) {
       case UrgencyLevel.now: return 'Need it now';
@@ -106,86 +126,293 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
     }
   }
 
-  IconData _getUrgencyIcon(UrgencyLevel level) {
+  Color _getUrgencyColor(UrgencyLevel level) {
     switch (level) {
-      case UrgencyLevel.now: return Icons.bolt_rounded;
-      case UrgencyLevel.soon: return Icons.access_time_filled;
-      case UrgencyLevel.flexible: return Icons.eco_rounded;
+      case UrgencyLevel.now: return const Color(0xFFFF4B4B);
+      case UrgencyLevel.soon: return const Color(0xFFFF9500);
+      case UrgencyLevel.flexible: return const Color(0xFF34C759);
     }
+  }
+
+  List<UrgentRequestWithProfile> get _filteredRequests {
+    return _urgentRequests.where((wrapper) {
+      if (_activeFilters.isEmpty) return true; // Show all if none selected
+      final level = _getUrgencyLevel(wrapper.request.neededBy);
+      return _activeFilters.contains(level);
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredRequests = _urgentRequests.where((wrapper) {
-      final req = wrapper.request;
-      if (_selectedFilter == 'All') return true;
-      final level = _getUrgencyLevel(req.neededBy);
-      if (_selectedFilter == 'Need it now' && level == UrgencyLevel.now) return true;
-      if (_selectedFilter == 'Soon' && level == UrgencyLevel.soon) return true;
-      if (_selectedFilter == 'Flexible' && level == UrgencyLevel.flexible) return true;
-      return false;
-    }).toList();
-
-    int countNow = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.now).length;
-    int countSoon = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.soon).length;
-    int countFlex = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.flexible).length;
-
+    final filtered = _filteredRequests;
+    
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0),
-          child: IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)]),
-              child: const Icon(CupertinoIcons.back, color: Colors.black87, size: 20),
-            ),
-            onPressed: () => context.pop(),
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // Background content (Map or List)
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child: _isListView ? _buildListView() : _buildMapView(filtered),
           ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)]),
-              child: Stack(
+
+          // Header
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: _buildHeader(),
+          ),
+
+          // Map/List Toggle & Radius (Map Mode Only)
+          if (!_isListView)
+            Positioned(
+              top: 100, left: 16, right: 16,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.notifications_none_rounded, color: Colors.black87, size: 24),
-                  Positioned(
-                    right: 2, top: 2,
-                    child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
-                  )
+                  _buildTogglePill(),
+                  const SizedBox(height: 12),
+                  _buildSearchBar(),
+                  const SizedBox(height: 12),
+                  _buildRadiusSelector(),
                 ],
               ),
             ),
-          )
+
+
+          // Toast
+          if (_showNewRequestToast)
+            Positioned(
+              top: 160, left: 0, right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add_circle, color: Colors.white, size: 16),
+                      const SizedBox(width: 8),
+                      Text('+1 new request nearby', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Bottom Sheet
+          if (!_isListView && _selectedRequest != null)
+            Positioned(
+              bottom: 24, left: 16, right: 16,
+              child: _buildSelectedCard(_selectedRequest!),
+            ),
+
+          // Bottom Legend Filters (only show if no request is selected in map mode)
+          if (!_isListView && _selectedRequest == null)
+            Positioned(
+              bottom: 32, left: 16, right: 16,
+              child: _buildInteractiveFilters(),
+            ),
+
+          // Empty state overlay
+          if (filtered.isEmpty && !_isLoading && !_isListView)
+            Positioned(
+              bottom: 120, left: 24, right: 24,
+              child: _buildEmptyState(),
+            ),
         ],
       ),
-      body: !_isListView ? _buildMapView() : _buildListView(),
     );
   }
 
-  Widget _buildMapView() {
-    final filteredRequests = _urgentRequests.where((wrapper) {
-      final req = wrapper.request;
-      if (_selectedFilter == 'All') return true;
-      final level = _getUrgencyLevel(req.neededBy);
-      if (_selectedFilter == 'Need it now' && level == UrgencyLevel.now) return true;
-      if (_selectedFilter == 'Soon' && level == UrgencyLevel.soon) return true;
-      if (_selectedFilter == 'Flexible' && level == UrgencyLevel.flexible) return true;
-      return false;
-    }).toList();
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, left: 16, right: 16, bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => context.pop(),
+            child: const Icon(CupertinoIcons.back, color: Colors.black87, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Live Requests', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                Row(
+                  children: [
+                    Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF34C759), shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: Text('Live Â· $_liveCount requests nearby', 
+                        key: ValueKey(_liveCount),
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black54)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildTogglePill() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildToggleOption(icon: CupertinoIcons.map_fill, label: 'Map View', isSelected: !_isListView, onTap: () => setState(() => _isListView = false)),
+          _buildToggleOption(icon: CupertinoIcons.list_bullet, label: 'List View', isSelected: _isListView, onTap: () => setState(() => _isListView = true)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleOption({required IconData icon, required String label, required bool isSelected, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1B4332) : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.black54),
+            const SizedBox(width: 8),
+            Text(label, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.black54)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRadiusSelector() {
+    final radii = [500, 1000, 2000, 5000, 10000000];
+    final labels = ['500m', '1km', '2km', '5km', 'All'];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(radii.length, (index) {
+          final isSelected = _searchRadiusMeters == radii[index];
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _searchRadiusMeters = radii[index];
+                _selectedRequest = null;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF1B4332) : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(labels[index], style: GoogleFonts.inter(
+                color: isSelected ? Colors.white : Colors.black54,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 12,
+              )),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildInteractiveFilters() {
     int countNow = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.now).length;
     int countSoon = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.soon).length;
     int countFlex = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.flexible).length;
 
-    final mapItems = filteredRequests.map((r) => {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildFilterBadge(countNow, UrgencyLevel.now, 'Need it now'),
+          _buildFilterBadge(countSoon, UrgencyLevel.soon, 'Need soon'),
+          _buildFilterBadge(countFlex, UrgencyLevel.flexible, 'Flexible'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterBadge(int count, UrgencyLevel level, String title) {
+    final color = _getUrgencyColor(level);
+    final isActive = _activeFilters.isEmpty || _activeFilters.contains(level);
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (_activeFilters.contains(level)) {
+            _activeFilters.remove(level);
+          } else {
+            _activeFilters.add(level);
+          }
+          _selectedRequest = null;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? color.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isActive ? color.withValues(alpha: 0.5) : Colors.transparent),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: Text(count.toString(), style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 6),
+            Text(title, style: GoogleFonts.inter(
+              color: isActive ? Colors.white : Colors.white54, 
+              fontSize: 11, 
+              fontWeight: isActive ? FontWeight.bold : FontWeight.w500
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapView(List<UrgentRequestWithProfile> filtered) {
+    final mapItems = filtered.where((r) => r.request.lat != null && r.request.lng != null).map((r) => {
       'id': r.request.id,
       'title': r.request.title,
       'urgency': _getUrgencyLevel(r.request.neededBy).name,
@@ -194,205 +421,138 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
       'wrapper': r,
     }).toList();
 
-    double searchRadiusMeters = 500; // default for now
-
-    return Stack(
-      children: [
-        ShareNestMap(
-          mode: MapMode.liveRequests,
-          items: mapItems,
-          searchRadiusMeters: searchRadiusMeters,
-          onMarkerTapped: (data) {
-             _showRequestBottomSheet(data['wrapper'] as UrgentRequestWithProfile);
-          },
-        ),
-        
-        // Top Gradient for readability
-        Positioned(
-          top: 0, left: 0, right: 0, height: 180,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
-              ),
-            ),
-          ),
-        ),
-
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 60.0, left: 24.0, right: 24.0, bottom: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text('Live Requests', style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: const Color(0xFF00C853).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF00C853))),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF00C853), shape: BoxShape.circle, boxShadow: [BoxShadow(color: Color(0xFF00C853), blurRadius: 4)])),
-                          const SizedBox(width: 6),
-                          Text('Live', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF00C853))),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text('Real people. Real needs. Help your neighbours right now.', style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
-                
-                const SizedBox(height: 24),
-                
-                // Controls Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildTogglePill(),
-                    _buildRadiusDropdown(),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // Bottom Urgency Filters
-        Positioned(
-          bottom: 32, left: 24, right: 24,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 20)],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildMapBottomBadge(countNow, 'Need it now', const Color(0xFFFF4B4B), '0-1 hour', 1),
-                _buildMapBottomBadge(countSoon, 'Need soon', const Color(0xFFFF9500), '1-6 hours', 2),
-                _buildMapBottomBadge(countFlex, 'Flexible', const Color(0xFF34C759), 'Anytime', 3),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return ShareNestMap(
+      mode: MapMode.liveRequests,
+      initialCenter: _mapCenter,
+      items: mapItems,
+      searchRadiusMeters: _searchRadiusMeters.toDouble(),
+      selectedItemId: _selectedRequest?.request.id,
+      onItemsInViewChanged: (count) {
+        if (mounted && _liveCount != count) {
+          setState(() => _liveCount = count);
+        }
+      },
+      onMapTapped: () {
+        if (_selectedRequest != null) {
+          setState(() => _selectedRequest = null);
+        }
+      },
+      onMarkerTapped: (data) {
+        final req = data['wrapper'] as UrgentRequestWithProfile;
+        if (_selectedRequest?.request.id == req.request.id) {
+          setState(() => _selectedRequest = null);
+        } else {
+          setState(() => _selectedRequest = req);
+        }
+      },
     );
   }
 
-  void _showRequestBottomSheet(UrgentRequestWithProfile wrapper) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.8),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5), width: 1),
-            boxShadow: [
-              BoxShadow(color: Colors.redAccent.withValues(alpha: 0.2), blurRadius: 30, spreadRadius: 5),
-            ],
+
+  Widget _buildSelectedCard(UrgentRequestWithProfile wrapper) {
+    final urgency = _getUrgencyLevel(wrapper.request.neededBy);
+    final color = _getUrgencyColor(urgency);
+    final label = _getUrgencyLabel(urgency);
+    
+    DateTime? postedTime;
+    if (wrapper.request.createdAt != null) {
+      postedTime = wrapper.request.createdAt!;
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 50 * (1 - value)),
+          child: Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: child,
           ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF4B4B).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.bolt, color: Color(0xFFFF4B4B), size: 14),
-                        const SizedBox(width: 4),
-                        Text(_getUrgencyLabel(_getUrgencyLevel(wrapper.request.neededBy)), style: GoogleFonts.inter(color: const Color(0xFFFF4B4B), fontSize: 12, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 30, spreadRadius: 5)],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54),
-                    onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  )
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(wrapper.request.title, style: GoogleFonts.poppins(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-              if (wrapper.request.description != null) ...[
-                const SizedBox(height: 6),
-                Text(wrapper.request.description!, style: GoogleFonts.inter(color: Colors.white70, fontSize: 14)),
+                  child: Row(
+                    children: [
+                      Icon(Icons.bolt, color: color, size: 14),
+                      const SizedBox(width: 4),
+                      Text(label, style: GoogleFonts.inter(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black54),
+                  onPressed: () => setState(() => _selectedRequest = null),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                )
               ],
-              const SizedBox(height: 16),
+            ),
+            const SizedBox(height: 12),
+            Text(wrapper.request.title, style: GoogleFonts.poppins(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildMiniInfo(Icons.location_on, _getDistanceText(wrapper.request), Colors.black54),
+                const SizedBox(width: 16),
+                _buildMiniInfo(Icons.access_time, wrapper.request.neededBy ?? 'Anytime', Colors.black54),
+              ],
+            ),
+            if (postedTime != null) ...[
+              const SizedBox(height: 6),
               Row(
                 children: [
-                  _buildMiniInfo(Icons.navigation, '~450 m', Colors.white54),
-                  const SizedBox(width: 16),
-                  _buildMiniInfo(Icons.access_time, wrapper.request.neededBy ?? '', const Color(0xFFFF9500)),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF4B4B),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.touch_app),
-                          const SizedBox(width: 8),
-                          Text('View Details', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.navigation, size: 20),
-                        const SizedBox(width: 8),
-                        Text('Navigate', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  )
+                  const Icon(Icons.history, size: 12, color: Colors.black45),
+                  const SizedBox(width: 6),
+                  Text('Posted ${timeago.format(postedTime)}', style: GoogleFonts.inter(color: Colors.black45, fontSize: 12)),
                 ],
               ),
             ],
-          ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      context.push('/urgent_request_detail/${wrapper.request.id}');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B4332), // Dark green color
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: Text('View Details', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                )
+              ],
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text('Approximate location shown until help is accepted', style: GoogleFonts.inter(color: Colors.black45, fontSize: 11)),
+            ),
+          ],
         ),
       ),
     );
@@ -401,99 +561,14 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
   Widget _buildMiniInfo(IconData icon, String text, Color color) {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-          child: Icon(icon, size: 12, color: color),
-        ),
-        const SizedBox(width: 6),
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
         Text(text, style: GoogleFonts.inter(color: color, fontSize: 13, fontWeight: FontWeight.w500)),
       ],
     );
   }
 
-  Widget _buildRadiusDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Text('500 m', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
-          const SizedBox(width: 8),
-          const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 18),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMapBottomBadge(int count, String title, Color color, String subtitle, int num) {
-    return Row(
-      children: [
-        Container(
-          width: 24, height: 24,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          child: Center(child: Text('$num', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
-        ),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(title, style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-            Text(subtitle, style: GoogleFonts.inter(color: Colors.white54, fontSize: 10)),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTogglePill() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GestureDetector(
-            onTap: () => setState(() => _isListView = false),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: !_isListView ? const Color(0xFF064B34) : Colors.transparent,
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Row(children: [
-                Icon(Icons.map_rounded, size: 16, color: !_isListView ? Colors.white : Colors.grey), 
-                const SizedBox(width: 8), 
-                Text('Map View', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: !_isListView ? Colors.white : Colors.grey))
-              ]),
-            ),
-          ),
-          GestureDetector(
-            onTap: () => setState(() => _isListView = true),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: _isListView ? const Color(0xFF064B34) : Colors.transparent,
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Row(children: [
-                Icon(Icons.format_list_bulleted_rounded, size: 16, color: _isListView ? Colors.white : Colors.grey), 
-                const SizedBox(width: 8), 
-                Text('List View', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _isListView ? Colors.white : Colors.grey))
-              ]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildListView() {
+Widget _buildListView() {
     final filteredRequests = _urgentRequests.where((wrapper) {
       final req = wrapper.request;
       if (_selectedFilter == 'All') return true;
@@ -577,7 +652,12 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
                     Center(
                       child: _buildTogglePill(),
                     ),
-                    
+                    const SizedBox(height: 16),
+                    // Search Bar inside List View
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: _buildSearchBar(),
+                    ),
                     const SizedBox(height: 24),
                     // Radar Summary Card
                     Padding(
@@ -742,7 +822,7 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
     final icon = _getUrgencyIcon(level);
     
     final avatar = profile['avatar_url'] as String?;
-    final name = profile['full_name'] as String? ?? 'Neighbor';
+    final name = profile['display_name'] as String? ?? 'Neighbor';
     final location = profile['location_name'] as String? ?? 'Nearby';
 
     return GestureDetector(
@@ -844,7 +924,7 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(name, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
-                              Text('$location · ~${req.radiusKm?.toStringAsFixed(1) ?? '2.0'} km', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey[500])),
+                              Text(_getDistanceText(req), style: GoogleFonts.inter(fontSize: 10, color: Colors.grey[500])),
                             ],
                           ),
                         ),
@@ -876,6 +956,72 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
     );
   }
 
+  
+  Widget _buildSearchBar() {
+    return GestureDetector(
+      onTap: _openLocationSearch,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search, color: Colors.grey),
+            const SizedBox(width: 8),
+            Text('Search location...', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openLocationSearch() async {
+    final TextEditingController searchController = TextEditingController();
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 16),
+              LocationAutocompleteField(
+                controller: searchController,
+                onSelected: (suggestion) {
+                  setState(() {
+                    _mapCenter = geo.Position(
+                      latitude: suggestion.lat,
+                      longitude: suggestion.lon,
+                      timestamp: DateTime.now(),
+                      accuracy: 0.0, altitude: 0.0, altitudeAccuracy: 0.0, heading: 0.0, headingAccuracy: 0.0, speed: 0.0, speedAccuracy: 0.0
+                    );
+                  });
+                  Navigator.pop(context);
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search for a location...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildEmptyState() {
     return Padding(
       padding: const EdgeInsets.all(40.0),
@@ -884,14 +1030,39 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
         children: [
           Icon(Icons.radar, color: Colors.grey[300], size: 80),
           const SizedBox(height: 24),
-          Text('All quiet nearby', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+          Text('All quiet nearby', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[800])),
           const SizedBox(height: 8),
-          Text('No requests found for this filter.', style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 14)),
+          Text('No requests found for this filter.', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
         ],
       ),
     );
   }
-}
+
+  IconData _getUrgencyIcon(UrgencyLevel level) {
+    switch (level) {
+      case UrgencyLevel.now: return Icons.bolt;
+      case UrgencyLevel.soon: return Icons.access_time;
+      case UrgencyLevel.flexible: return Icons.eco;
+    }
+  }
+
+  String _getDistanceText(UrgentRequest req) {
+    if (_mapCenter != null && req.lat != null && req.lng != null) {
+      double distanceInMeters = geo.Geolocator.distanceBetween(
+        _mapCenter!.latitude,
+        _mapCenter!.longitude,
+        req.lat!,
+        req.lng!,
+      );
+      if (distanceInMeters < 1000) {
+        return '~${distanceInMeters.round()} m away';
+      } else {
+        return '~${(distanceInMeters / 1000).toStringAsFixed(1)} km away';
+      }
+    }
+    return 'Nearby';
+  }
+} // End of class
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverAppBarDelegate({
@@ -922,3 +1093,4 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
         child != oldDelegate.child;
   }
 }
+

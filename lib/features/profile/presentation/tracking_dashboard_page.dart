@@ -28,7 +28,10 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
   List<Map<String, dynamic>> get _filteredMyRequests {
     if (_selectedDateRange == null) return _myRequests;
     return _myRequests.where((req) {
-      final date = DateTime.parse(req['created_at']);
+      final dateStr = req['created_at'];
+      if (dateStr == null) return false;
+      final date = DateTime.tryParse(dateStr);
+      if (date == null) return false;
       return date.isAfter(_selectedDateRange!.start) && date.isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
     }).toList();
   }
@@ -36,7 +39,10 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
   List<Map<String, dynamic>> get _filteredIncomingRequests {
     if (_selectedDateRange == null) return _incomingRequests;
     return _incomingRequests.where((req) {
-      final date = DateTime.parse(req['created_at']);
+      final dateStr = req['created_at'];
+      if (dateStr == null) return false;
+      final date = DateTime.tryParse(dateStr);
+      if (date == null) return false;
       return date.isAfter(_selectedDateRange!.start) && date.isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
     }).toList();
   }
@@ -213,8 +219,11 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
                     ),
                   ),
                 ),
-                NestedScrollView(
-                  headerSliverBuilder: (context, innerBoxIsScrolled) {
+                RefreshIndicator(
+                  onRefresh: _loadData,
+                  color: AppColors.primary,
+                  child: NestedScrollView(
+                    headerSliverBuilder: (context, innerBoxIsScrolled) {
                     return [
                       SliverToBoxAdapter(
                         child: Column(
@@ -250,6 +259,7 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
                     ],
                   ),
                 ),
+                ), // Closes RefreshIndicator
               ],
             ),
     );
@@ -359,7 +369,11 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
     final pendingMy = _filteredMyRequests.where((r) => r['status'] == 'PENDING').map((e) => {...e, 'isOwner': false});
     final pendingIncoming = _filteredIncomingRequests.where((r) => r['status'] == 'PENDING').map((e) => {...e, 'isOwner': true});
     final pending = [...pendingIncoming, ...pendingMy];
-    pending.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
+    pending.sort((a, b) {
+      final dateA = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final dateB = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return dateB.compareTo(dateA);
+    });
     if (pending.isEmpty) return _buildEmptyState('No Pending Requests', 'All caught up!', Icons.check_circle_outline);
     return _buildMixedList(pending);
   }
@@ -369,7 +383,11 @@ class _TrackingDashboardPageState extends State<TrackingDashboardPage> with Sing
     final historyMy = _filteredMyRequests.where((r) => historyStates.contains(r['status'])).map((e) => {...e, 'isOwner': false});
     final historyIncoming = _filteredIncomingRequests.where((r) => historyStates.contains(r['status'])).map((e) => {...e, 'isOwner': true});
     final history = [...historyIncoming, ...historyMy];
-    history.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
+    history.sort((a, b) {
+      final dateA = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final dateB = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return dateB.compareTo(dateA);
+    });
     if (history.isEmpty) return _buildEmptyState('No History', 'Data logs are empty.', Icons.history);
     return _buildMixedList(history);
   }

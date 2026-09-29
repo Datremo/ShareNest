@@ -10,8 +10,10 @@ import '../../../core/data/models/profile.dart';
 import '../../../core/data/repositories/profile_repository.dart';
 import '../../../core/data/repositories/request_repository.dart';
 import '../../../core/data/repositories/listing_repository.dart';
+import '../../../core/data/repositories/chat_repository.dart';
 import '../../../core/presentation/widgets/glassmorphism.dart';
 import '../../requests/presentation/owner_request_detail_page.dart';
+import '../../messages/presentation/conversation_page.dart';
 
 class ItemDetailPage extends StatefulWidget {
   final Listing listing;
@@ -30,6 +32,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   int _pendingRequestsCount = 0;
   bool _isLoadingRequests = true;
   bool _hasActiveOrAcceptedRequest = false;
+  String? _currentUserRequestStatus;
 
   List<String> get _images => _currentListing.photoUrls;
   bool get _isOwner => Supabase.instance.client.auth.currentUser?.id == _currentListing.ownerId;
@@ -39,11 +42,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     super.initState();
     _currentListing = widget.listing;
     _fetchOwner();
-    if (_isOwner) {
-      _fetchRequests();
-    } else {
-      _isLoadingRequests = false;
-    }
+    _fetchRequests();
   }
 
   Future<void> _fetchOwner() async {
@@ -63,7 +62,19 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
       if (mounted) {
         setState(() {
           _pendingRequestsCount = requests.where((r) => r['status'] == 'PENDING').length;
-          _hasActiveOrAcceptedRequest = requests.any((r) => ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'ACTIVE', 'RETURN_REQUESTED'].contains(r['status']));
+          
+          final myUserId = Supabase.instance.client.auth.currentUser?.id;
+          
+          final myRequest = requests.cast<Map<String, dynamic>>().firstWhere(
+            (r) => r['requester_id'] == myUserId && ['PENDING', 'ACCEPTED', 'ACTIVE', 'RETURN_REQUESTED'].contains(r['status']),
+            orElse: () => <String, dynamic>{},
+          );
+          
+          _currentUserRequestStatus = myRequest.isNotEmpty ? myRequest['status'] as String : null;
+          
+          _hasActiveOrAcceptedRequest = requests.any((r) => 
+             ['ACCEPTED', 'ACTIVE', 'RETURN_REQUESTED'].contains(r['status'])
+          );
         });
       }
     } catch (e) {
@@ -476,7 +487,38 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.primaryDark),
+            IconButton(
+              onPressed: () async {
+                 try {
+                   final _chatRepo = ChatRepository();
+                   final convId = await _chatRepo.createOrGetConversation(
+                      contextType: 'listing',
+                      contextId: _currentListing.id,
+                      otherUserId: _ownerProfile!.id,
+                   );
+                   if (context.mounted) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => ConversationPage(
+                            conversationId: convId ?? '',
+                            otherUserName: _ownerProfile!.displayName,
+                            contextLabel: 'Context: ${_currentListing.title}',
+                          ),
+                        ),
+                      );
+                   }
+                 } catch (e) {
+                   if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error starting chat: $e')));
+                   }
+                 }
+              },
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                padding: const EdgeInsets.all(12),
+              ),
+              icon: const Icon(Icons.chat_bubble_rounded, color: AppColors.primary, size: 24),
+            ),
           ],
         ),
       ),
@@ -590,39 +632,68 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                                 context.push('/owner_requests_list', extra: _currentListing);
                               },
                             )
-                          : _hasActiveOrAcceptedRequest
+                          : _currentUserRequestStatus != null
                               ? Container(
                                   padding: const EdgeInsets.symmetric(vertical: 16),
                                   decoration: BoxDecoration(
-                                    color: Colors.orange[100],
+                                    color: _currentUserRequestStatus == 'PENDING' ? Colors.blue[100] : Colors.green[100],
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.lock_clock, color: Colors.orange),
-                                      SizedBox(width: 8),
-                                      Text('Currently Unavailable', style: TextStyle(color: Colors.orange, fontSize: 16, fontWeight: FontWeight.bold)),
+                                      Icon(
+                                        _currentUserRequestStatus == 'PENDING' ? Icons.pending_actions : Icons.check_circle_outline,
+                                        color: _currentUserRequestStatus == 'PENDING' ? Colors.blue : Colors.green,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _currentUserRequestStatus == 'PENDING' ? 'Request Pending' : 
+                                        _currentUserRequestStatus == 'ACCEPTED' ? 'Request Accepted' :
+                                        _currentUserRequestStatus == 'ACTIVE' ? 'Transaction Active' :
+                                        _currentUserRequestStatus == 'RETURN_REQUESTED' ? 'Return Pending' : 'View Request',
+                                        style: TextStyle(
+                                          color: _currentUserRequestStatus == 'PENDING' ? Colors.blue : Colors.green,
+                                          fontSize: 16, 
+                                          fontWeight: FontWeight.bold
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 )
-                              : GlassButton(
-                                  label: _currentListing.mode == 'LEND'
-                                      ? 'Request to Borrow'
-                                      : _currentListing.mode == 'GIVE'
-                                          ? 'Request Item'
-                                          : 'Offer Exchange',
-                                  icon: Icons.handshake_rounded,
-                                  onPressed: () {
-                                    if (_currentListing.mode == 'LEND') {
-                                      context.push('/request_borrow', extra: _currentListing);
-                                    } else if (_currentListing.mode == 'GIVE') {
-                                      context.push('/request_free_item', extra: _currentListing);
-                                    } else {
-                                      context.push('/request_exchange', extra: _currentListing);
-                                    }
-                                  },
-                                ),
+                              : _hasActiveOrAcceptedRequest
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange[100],
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.lock_clock, color: Colors.orange),
+                                          SizedBox(width: 8),
+                                          Text('Currently Unavailable', style: TextStyle(color: Colors.orange, fontSize: 16, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    )
+                                  : GlassButton(
+                                      label: _currentListing.mode == 'LEND'
+                                          ? 'Request to Borrow'
+                                          : _currentListing.mode == 'GIVE'
+                                              ? 'Request Item'
+                                              : 'Offer Exchange',
+                                      icon: Icons.handshake_rounded,
+                                      onPressed: () {
+                                        if (_currentListing.mode == 'LEND') {
+                                          context.push('/request_borrow', extra: _currentListing);
+                                        } else if (_currentListing.mode == 'GIVE') {
+                                          context.push('/request_free_item', extra: _currentListing);
+                                        } else {
+                                          context.push('/request_exchange', extra: _currentListing);
+                                        }
+                                      },
+                                    ),
                 ),
               ],
             ),

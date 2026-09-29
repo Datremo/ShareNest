@@ -5,7 +5,8 @@ import '../../../core/data/repositories/listing_repository.dart';
 import '../../../core/data/models/listing.dart';
 
 class MyListingsPage extends StatefulWidget {
-  const MyListingsPage({super.key});
+  final String? userId;
+  const MyListingsPage({super.key, this.userId});
 
   @override
   State<MyListingsPage> createState() => _MyListingsPageState();
@@ -102,9 +103,9 @@ class _MyListingsPageState extends State<MyListingsPage> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
-          'My Listings',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          widget.userId == null ? 'My Listings' : 'Listings',
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
@@ -122,7 +123,7 @@ class _MyListingsPageState extends State<MyListingsPage> {
           setState(() {});
         },
         child: FutureBuilder<List<Listing>>(
-        future: _listingRepository.getUserListings(),
+        future: _listingRepository.getUserListings(widget.userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

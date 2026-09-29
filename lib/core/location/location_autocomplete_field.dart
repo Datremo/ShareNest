@@ -56,19 +56,42 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
   Future<List<LocationSuggestion>> _getSuggestions(String query) async {
     if (query.length < 3) return [];
     try {
-      String url = 'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googlePlacesKey&components=country:in';
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['predictions'] != null) {
-          return (data['predictions'] as List).map((p) {
-            return LocationSuggestion(
-              displayName: p['description'],
-              lat: 0,
-              lon: 0,
-              placeId: p['place_id'],
-            );
-          }).toList();
+      if (kIsWeb) {
+        // Use Google Geocoding API instead of Places Autocomplete for Web.
+        // Google Geocoding API supports CORS natively, whereas Places Autocomplete does not.
+        // It provides access to Google's database for landmarks like "Tapal Naka".
+        String url = 'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(query)}&key=$_googleGeocodingKey&components=country:in';
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['results'] != null && (data['results'] as List).isNotEmpty) {
+            return (data['results'] as List).map((p) {
+              final location = p['geometry']['location'];
+              return LocationSuggestion(
+                displayName: p['formatted_address'],
+                lat: location['lat'] as double,
+                lon: location['lng'] as double,
+                placeId: p['place_id'],
+              );
+            }).toList();
+          }
+        }
+      } else {
+        // Original Google Places logic for native apps
+        String url = 'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&key=$_googlePlacesKey&components=country:in';
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['predictions'] != null) {
+            return (data['predictions'] as List).map((p) {
+              return LocationSuggestion(
+                displayName: p['description'],
+                lat: 0,
+                lon: 0,
+                placeId: p['place_id'],
+              );
+            }).toList();
+          }
         }
       }
     } catch (e) {
@@ -80,7 +103,7 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
   Future<void> _reverseGeocodeAndSelect(double lat, double lon) async {
     setState(() => _isLoading = true);
     try {
-      // We still need the HTTP call for reverse geocoding because Places SDK doesn't natively do lat/lng -> address easily.
+      // Google Geocoding API supports CORS, so we can use it on Web directly
       String url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=$lat,$lon&key=$_googleGeocodingKey';
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {

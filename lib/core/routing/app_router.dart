@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/data/models/profile.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/models/item_request.dart';
+import '../../../core/data/models/urgent_request.dart';
+import '../../features/requests/presentation/send_offer_wizard_page.dart';
 import '../presentation/main_scaffold.dart';
 import 'page_transitions.dart';
 import '../../features/splash/presentation/splash_screen.dart';
@@ -145,6 +147,19 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const PostPublishedPage(),
     ),
     GoRoute(
+      path: '/send_offer',
+      parentNavigatorKey: _rootNavigatorKey,
+      pageBuilder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        final request = extra['request'] as UrgentRequest;
+        final offerType = extra['offerType'] as String;
+        return SpringBottomUpTransitionPage(
+          key: state.pageKey,
+          child: SendOfferWizardPage(request: request, offerType: offerType),
+        );
+      },
+    ),
+    GoRoute(
       path: '/create_urgent_request',
       parentNavigatorKey: _rootNavigatorKey,
       pageBuilder: (context, state) => SpringBottomUpTransitionPage(
@@ -157,9 +172,11 @@ final GoRouter appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       pageBuilder: (context, state) {
         final id = state.pathParameters['id']!;
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final openOffer = extra['openOffer'] == true;
         return SpringBottomUpTransitionPage(
           key: state.pageKey,
-          child: UrgentRequestDetailPage(requestId: id),
+          child: UrgentRequestDetailPage(requestId: id, openOffer: openOffer),
         );
       },
     ),
@@ -187,12 +204,22 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/conversation',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const ConversationPage(),
+      builder: (context, state) {
+        final Map<String, dynamic>? extra = state.extra as Map<String, dynamic>?;
+        return ConversationPage(
+          conversationId: extra?['conversationId'] ?? '',
+          otherUserName: extra?['otherUserName'],
+          contextLabel: extra?['contextLabel'],
+        );
+      },
     ),
     GoRoute(
       path: '/my_listings',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const MyListingsPage(),
+      builder: (context, state) {
+        final userId = state.uri.queryParameters['userId'];
+        return MyListingsPage(userId: userId);
+      },
     ),
     GoRoute(
       path: '/settings',

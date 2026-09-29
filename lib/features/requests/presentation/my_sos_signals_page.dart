@@ -129,7 +129,7 @@ class _MySosSignalsPageState extends State<MySosSignalsPage> {
                 ? requester['location_name'] ?? 'Nearby'
                 : 'Nearby',
             partnerName: requester != null
-                ? requester['full_name'] ?? 'Neighbor'
+                ? requester['display_name'] ?? 'Neighbor'
                 : 'Neighbor',
             partnerAvatar: requester != null ? requester['avatar_url'] : null,
             isPostedByMe: false, // I am the helper
@@ -358,7 +358,7 @@ class _MySosSignalsPageState extends State<MySosSignalsPage> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                '\$count',
+                '$count',
                 style: GoogleFonts.inter(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,

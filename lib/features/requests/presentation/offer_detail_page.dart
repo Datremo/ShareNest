@@ -153,7 +153,7 @@ class _OfferDetailPageState extends State<OfferDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _helperProfile?['full_name'] ?? 'Neighbor',
+                        _helperProfile?['display_name'] ?? 'Neighbor',
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,

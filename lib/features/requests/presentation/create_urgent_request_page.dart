@@ -1,9 +1,12 @@
 import 'dart:math' as math;
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/presentation/widgets/liquid_glass_widgets.dart';
 import '../../../core/data/models/urgent_request.dart';
@@ -25,6 +28,9 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _locationController = TextEditingController();
+  
+  XFile? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
   
   String? _neededBy;
   String? _duration;
@@ -65,6 +71,14 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
   }
 
   void _nextStep() {
+    if (_currentStep == 0 && _titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter what you need')));
+      return;
+    }
+    if (_currentStep == 3 && (_locationController.text.trim().isEmpty || _selectedLat == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a valid location')));
+      return;
+    }
     if (_currentStep < _totalSteps - 1) {
       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     }
@@ -86,11 +100,25 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('Not logged in');
 
+      String? imageUrl;
+      if (_selectedImage != null) {
+        final bytes = await _selectedImage!.readAsBytes();
+        final ext = _selectedImage!.name.split('.').last;
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}.$ext';
+        await Supabase.instance.client.storage
+            .from('listing_images') // Using existing bucket for now
+            .uploadBinary(fileName, bytes);
+        imageUrl = Supabase.instance.client.storage
+            .from('listing_images')
+            .getPublicUrl(fileName);
+      }
+
       // Add to DB
       await Supabase.instance.client.from('urgent_requests').insert({
         'requester_id': user.id,
         'title': _titleController.text,
         'description': _descController.text,
+        'image_url': imageUrl,
         'needed_by': _neededBy == 'By a specific time' && _specificTime != null 
           ? 'By ${_specificTime!.format(context)}' 
           : (_neededBy ?? 'Right now'),
@@ -220,21 +248,37 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
           const SizedBox(height: 24),
           Text('Add a photo so neighbours know exactly what you mean.', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14)),
           const SizedBox(height: 12),
-          Container(
-            height: 100,
-            width: 100,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey[300]!, width: 2, style: BorderStyle.solid),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.camera_alt_outlined, color: Colors.grey[400], size: 32),
-                const SizedBox(height: 4),
-                Text('Add photo', style: GoogleFonts.inter(color: Colors.grey[400], fontSize: 12)),
-              ],
+          GestureDetector(
+            onTap: () async {
+              final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+              if (image != null) {
+                setState(() => _selectedImage = image);
+              }
+            },
+            child: Container(
+              height: 100,
+              width: 100,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey[300]!, width: 2, style: BorderStyle.solid),
+                image: _selectedImage != null
+                  ? DecorationImage(
+                      image: kIsWeb 
+                        ? NetworkImage(_selectedImage!.path) 
+                        : FileImage(File(_selectedImage!.path)) as ImageProvider,
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+              ),
+              child: _selectedImage == null ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.camera_alt_outlined, color: Colors.grey[400], size: 32),
+                  const SizedBox(height: 4),
+                  Text('Add photo', style: GoogleFonts.inter(color: Colors.grey[400], fontSize: 12)),
+                ],
+              ) : null,
             ),
           ),
           const SizedBox(height: 24),
@@ -536,12 +580,14 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
       children: [
         Icon(icon, color: Colors.grey[400], size: 20),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.bold)),
-            Text(value, style: GoogleFonts.inter(fontSize: 16, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.bold)),
+              Text(value, style: GoogleFonts.inter(fontSize: 16, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+            ],
+          ),
         ),
       ],
     );

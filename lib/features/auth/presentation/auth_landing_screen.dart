@@ -80,52 +80,6 @@ class AuthLandingScreen extends StatelessWidget {
                   
                   const SizedBox(height: 48),
                   
-                  // Continue with Email Card
-                  Hero(
-                    tag: 'auth_card_email',
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => context.push('/login'),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                            border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.email_outlined, color: AppColors.primaryDark),
-                              const SizedBox(width: 16),
-                              const Expanded(
-                                child: Text(
-                                  'Continue with Email',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryDark,
-                                  ),
-                                ),
-                              ),
-                              Icon(Icons.chevron_right, color: AppColors.primaryDark.withValues(alpha: 0.5)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
                   // Continue with Username Card
                   Hero(
                     tag: 'auth_card_username',
@@ -155,6 +109,52 @@ class AuthLandingScreen extends StatelessWidget {
                               const Expanded(
                                 child: Text(
                                   'Continue with Username',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
+                              ),
+                              Icon(Icons.chevron_right, color: AppColors.primaryDark.withValues(alpha: 0.5)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Continue with Email Card
+                  Hero(
+                    tag: 'auth_card_email',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => context.push('/login'),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                            border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.email_outlined, color: AppColors.primaryDark),
+                              const SizedBox(width: 16),
+                              const Expanded(
+                                child: Text(
+                                  'Continue with Email',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,

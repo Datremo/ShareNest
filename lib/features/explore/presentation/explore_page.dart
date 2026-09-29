@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'filters_bottom_sheet.dart';
 
@@ -12,7 +13,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import '../../../core/maps/sharenest_map.dart';
 import '../../../core/location/location_autocomplete_field.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator/geolocator.dart' hide Position;
+import 'package:geolocator/geolocator.dart' as geo show Position;
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -33,8 +36,11 @@ class _ExplorePageState extends State<ExplorePage> {
   late Future<List<Listing>> _activeListingsFuture;
   RealtimeChannel? _listingsChannel;
   
-  Position? _mapCenter;
+  geo.Position? _mapCenter;
   String _locationName = 'Navi Mumbai';
+  
+  Listing? _selectedItem;
+  int _nearbyItemsCount = 0;
 
   @override
   void initState() {
@@ -60,6 +66,21 @@ class _ExplorePageState extends State<ExplorePage> {
 
   void _fetchListings() {
     _activeListingsFuture = _listingRepo.getActiveListings();
+  }
+
+  void _onListItemTapped(Listing item) {
+    setState(() {
+      _selectedItem = item;
+      _isListView = false;
+      if (item.latitude != null && item.longitude != null) {
+         _mapCenter = geo.Position(
+           latitude: item.latitude!,
+           longitude: item.longitude!,
+           timestamp: DateTime.now(),
+           accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0, altitudeAccuracy: 0, headingAccuracy: 0
+         );
+      }
+    });
   }
 
   @override
@@ -130,7 +151,7 @@ class _ExplorePageState extends State<ExplorePage> {
                 controller: searchController,
                 onSelected: (suggestion) {
                   setState(() {
-                    _mapCenter = Position(
+                    _mapCenter = geo.Position(
                        latitude: suggestion.lat,
                        longitude: suggestion.lon,
                        timestamp: DateTime.now(),
@@ -157,12 +178,39 @@ class _ExplorePageState extends State<ExplorePage> {
             FutureBuilder<List<Listing>>(
               future: _activeListingsFuture,
               builder: (context, snapshot) {
-                final mapItems = (snapshot.data ?? []).where((p) => p.latitude != null && p.longitude != null).map((p) => {
+                var rawListings = snapshot.data ?? [];
+                
+                // Apply category filter
+                if (_selectedCategory != null) {
+                  rawListings = rawListings.where((l) => l.categoryId == _selectedCategory).toList();
+                }
+
+                // Apply distance filter (if enabled in activeFilters and we have mapCenter)
+                if (_activeFilters != null && _activeFilters!['distance'] != null && _mapCenter != null) {
+                  double maxDist = double.tryParse(_activeFilters!['distance'].toString()) ?? 5000;
+                  rawListings = rawListings.where((l) {
+                    if (l.latitude == null || l.longitude == null) return false;
+                    double dist = Geolocator.distanceBetween(
+                      _mapCenter!.latitude, _mapCenter!.longitude,
+                      l.latitude!, l.longitude!
+                    );
+                    return dist <= maxDist;
+                  }).toList();
+                }
+
+                // Apply type filter
+                if (_activeFilters != null && _activeFilters!['type'] != null && _activeFilters!['type'] != 'All') {
+                  String filterType = _activeFilters!['type'].toString().toUpperCase();
+                  rawListings = rawListings.where((l) => l.mode == filterType).toList();
+                }
+
+                final mapItems = rawListings.where((p) => p.latitude != null && p.longitude != null).map((p) => {
                   'id': p.id,
                   'title': p.title,
                   'lat': p.latitude,
                   'lng': p.longitude,
                   'type': p.mode == 'LEND' ? 'lend' : (p.mode == 'GIVE' ? 'give' : 'exchange'),
+                  'urgency': 'none',
                   'wrapper': p,
                 }).toList();
 
@@ -171,58 +219,191 @@ class _ExplorePageState extends State<ExplorePage> {
                   mode: MapMode.explore,
                   items: mapItems,
                   initialCenter: _mapCenter,
+                  selectedItemId: _selectedItem?.id,
+                  onItemsInViewChanged: (count) {
+                    if (mounted && _nearbyItemsCount != count) {
+                      setState(() => _nearbyItemsCount = count);
+                    }
+                  },
                   onMarkerTapped: (data) {
-                    _showMapItemPreview(data['wrapper'] as Listing);
+                    final item = data['wrapper'] as Listing;
+                    if (_selectedItem?.id == item.id) {
+                      setState(() => _selectedItem = null);
+                    } else {
+                      setState(() => _selectedItem = item);
+                    }
+                  },
+                  onMapTapped: () {
+                    if (_selectedItem != null) {
+                      setState(() => _selectedItem = null);
+                    }
                   },
                 );
               }
             ),
             
-            // Floating Top Header
+            // Floating Top Header & Chips
             SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _openLocationSearch,
-                        child: Container(
-                          height: 52,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            borderRadius: BorderRadius.circular(26),
-                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 4))],
-                            border: Border.all(color: Colors.grey[300]!, width: 1),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _openLocationSearch,
+                            child: Container(
+                              height: 52,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(26),
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(26),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.search, color: AppColors.primary, size: 24),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Search area or address', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+                                            Text(_locationName, style: const TextStyle(color: AppColors.primaryDark, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.search, color: AppColors.primary, size: 24),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: _showFilters,
+                          child: Container(
+                            height: 52,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(26),
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                              border: Border.all(color: Colors.white, width: 1.5),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(26),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: const Row(
                                   children: [
-                                    const Text('Search area or address', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
-                                    Text(_locationName, style: const TextStyle(color: AppColors.primaryDark, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    Icon(Icons.tune_rounded, color: AppColors.primaryDark, size: 20),
+                                    SizedBox(width: 6),
+                                    Text('Filters', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w800, fontSize: 14)),
                                   ],
                                 ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  
+                  // Category Chips
+                  SizedBox(
+                    height: 40,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _categories.length,
+                      itemBuilder: (context, index) {
+                        final cat = _categories[index];
+                        final isSelected = _selectedCategory == cat['id'];
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() => _selectedCategory = cat['id']);
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: isSelected ? AppColors.primary : Colors.white, width: 1.5),
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(cat['icon'] as IconData, size: 14, color: isSelected ? Colors.white : AppColors.primaryDark),
+                                    const SizedBox(width: 6),
+                                    Text(cat['name'] as String, style: TextStyle(
+                                      color: isSelected ? Colors.white : AppColors.primaryDark,
+                                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                                      fontSize: 13
+                                    )),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
             
+            // Nearby Count Indicator
+            if (_nearbyItemsCount > 0)
+              Positioned(
+                top: 130, left: 0, right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Text('$_nearbyItemsCount items nearby', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark)),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Map Overlay Content / Previews
+            if (_selectedItem != null)
+              Positioned(
+                bottom: 120, // above the map/list switch
+                left: 16,
+                right: 16,
+                child: _buildInlineItemPreview(_selectedItem!),
+              ),
+              
             // Floating Toggle Switch
             Positioned(
-              bottom: 96, // Moved up to avoid overlapping with bottom navigation bar
+              bottom: 96,
               left: 0,
               right: 0,
               child: Center(child: _buildTogglePill()),
@@ -261,105 +442,180 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
-  void _showMapItemPreview(Listing listing) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return GestureDetector(
-          onTap: () {
-            Navigator.pop(context);
-            context.push('/items/${listing.id}', extra: listing);
-          },
-          child: Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.95),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10)),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (listing.photoUrls.isNotEmpty)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          listing.photoUrls.first,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 80, height: 80,
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        width: 80, height: 80,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryLight.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
-                      ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(listing.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primaryDark), maxLines: 2, overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: listing.mode == 'LEND' ? Colors.green[50] : Colors.orange[50],
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  listing.mode == 'LEND' ? '🟢 Lend' : (listing.mode == 'GIVE' ? '🟠 Give' : '🔵 Exchange'),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: listing.mode == 'LEND' ? Colors.green[700] : Colors.orange[700]
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text('📍 ~850 m', style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500)),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Text('View Item ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
-                              Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
-                            ],
-                          )
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+  Widget _buildInlineItemPreview(Listing listing) {
+    return TweenAnimationBuilder(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutBack,
+      builder: (context, double value, child) {
+        return Transform.scale(
+          scale: 0.9 + (0.1 * value),
+          child: Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: child,
           ),
         );
-      }
+      },
+      child: GestureDetector(
+        onTap: () {
+          context.push('/items/${listing.id}', extra: listing);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10)),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => setState(() => _selectedItem = null),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
+                          child: const Icon(Icons.close, size: 16, color: Colors.black54),
+                        ),
+                      )
+                    ],
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (listing.photoUrls.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.network(
+                            listing.photoUrls.first,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 80, height: 80,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          width: 80, height: 80,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
+                        ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(listing.title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppColors.primaryDark, letterSpacing: -0.3), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: listing.mode == 'LEND' ? AppColors.primary.withValues(alpha: 0.1) : AppColors.give.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(listing.mode == 'LEND' ? Icons.handshake_rounded : Icons.card_giftcard_rounded, size: 12, color: listing.mode == 'LEND' ? AppColors.primary : AppColors.give),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        listing.mode == 'LEND' ? 'Lend' : 'Give',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                          color: listing.mode == 'LEND' ? AppColors.primary : AppColors.give
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.location_on_rounded, size: 12, color: Colors.black54),
+                                const SizedBox(width: 2),
+                                const Text('~420m away', style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text('Available today', style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: Colors.blue.shade100,
+                                  child: const Text('R', style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text('Nearby neighbour', style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500)),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // directions
+                          },
+                          icon: const Icon(Icons.navigation_rounded, size: 16, color: Colors.black87),
+                          label: const Text('Directions', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.grey.shade200)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            context.push('/items/${listing.id}', extra: listing);
+                          },
+                          icon: const Icon(Icons.chat_bubble_rounded, size: 16, color: Colors.white),
+                          label: const Text('View Item', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            elevation: 4,
+                            shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -757,7 +1013,7 @@ class _ExplorePageState extends State<ExplorePage> {
                   itemBuilder: (context, index) {
                     final item = listings[index];
                     return GestureDetector(
-                      onTap: () => context.push('/item', extra: item),
+                      onTap: () => _onListItemTapped(item),
                       child: Container(
                         width: 140, // Scaled down
                         decoration: BoxDecoration(
@@ -774,6 +1030,7 @@ class _ExplorePageState extends State<ExplorePage> {
                                 children: [
                                    Container(
                                      width: double.infinity,
+                                     height: double.infinity,
                                      decoration: BoxDecoration(
                                        color: Colors.grey[200],
                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -781,7 +1038,7 @@ class _ExplorePageState extends State<ExplorePage> {
                                      child: item.photoUrls.isNotEmpty
                                           ? ClipRRect(
                                               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                              child: Image.network(item.photoUrls.first, fit: BoxFit.cover),
+                                              child: Image.network(item.photoUrls.first, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
                                             )
                                           : const Icon(Icons.image, color: Colors.grey),
                                    ),
@@ -907,7 +1164,7 @@ class _ExplorePageState extends State<ExplorePage> {
                       final ownerAvatar = ownerProfile?.photoUrl;
 
                       return GestureDetector(
-                        onTap: () => context.push('/item', extra: item),
+                        onTap: () => _onListItemTapped(item),
                         child: Container(
                           height: 110, // Scaled down
                           margin: const EdgeInsets.only(bottom: 16),
@@ -923,6 +1180,7 @@ class _ExplorePageState extends State<ExplorePage> {
                                 children: [
                                   Container(
                                     width: 110, 
+                                    height: double.infinity,
                                     decoration: BoxDecoration(
                                       color: Colors.grey[200],
                                       borderRadius: const BorderRadius.horizontal(left: Radius.circular(16))
@@ -930,7 +1188,7 @@ class _ExplorePageState extends State<ExplorePage> {
                                     child: item.photoUrls.isNotEmpty
                                         ? ClipRRect(
                                             borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
-                                            child: Image.network(item.photoUrls.first, fit: BoxFit.cover),
+                                            child: Image.network(item.photoUrls.first, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
                                           )
                                         : const Icon(Icons.image, color: Colors.grey),
                                   ),

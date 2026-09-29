@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -26,6 +27,7 @@ class _LoginUsernameScreenState extends State<LoginUsernameScreen> {
     }
 
     setState(() => _isLoading = true);
+    TextInput.finishAutofillContext();
 
     try {
       // Fetch email associated with this username using RPC
@@ -133,17 +135,26 @@ class _LoginUsernameScreenState extends State<LoginUsernameScreen> {
                   const SizedBox(height: 40),
                   
                   // Form Fields
-                  _buildTextField(
-                    controller: _usernameController,
-                    hint: 'yourusername',
-                    label: 'Username',
-                  ),
-                  const SizedBox(height: 24),
-                  _buildTextField(
-                    controller: _passwordController,
-                    hint: '••••••••',
-                    label: 'Password',
-                    isPassword: true,
+                  AutofillGroup(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTextField(
+                          controller: _usernameController,
+                          hint: 'yourusername',
+                          label: 'Username',
+                          autofillHints: const [AutofillHints.username],
+                        ),
+                        const SizedBox(height: 24),
+                        _buildTextField(
+                          controller: _passwordController,
+                          hint: '••••••••',
+                          label: 'Password',
+                          isPassword: true,
+                          autofillHints: const [AutofillHints.password],
+                        ),
+                      ],
+                    ),
                   ),
                   
                   const SizedBox(height: 16),
@@ -301,6 +312,7 @@ class _LoginUsernameScreenState extends State<LoginUsernameScreen> {
     required String hint,
     required String label,
     bool isPassword = false,
+    Iterable<String>? autofillHints,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,6 +335,7 @@ class _LoginUsernameScreenState extends State<LoginUsernameScreen> {
           child: TextField(
             controller: controller,
             obscureText: isPassword && _obscurePassword,
+            autofillHints: autofillHints,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),

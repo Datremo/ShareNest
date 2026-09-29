@@ -269,19 +269,32 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
           if (!notif.isRead) _notificationRepo.markAsRead(notif.id);
           final reqId = notif.entityId ?? notif.data?['request_id'];
             if (reqId != null) {
-              final ownerTypes = [
-                'request_received', 
-                'handoff_pin_generated', 
-                'return_requested', 
-                'return_pin_generated'
-              ];
-              
-              if (ownerTypes.contains(notif.type)) {
-                context.push('/owner-request-detail/$reqId').then((_) => _loadData());
-              } else if (notif.type == 'urgent_offer_received') {
+              if (notif.type == 'urgent_offer_received') {
                 context.push('/my_sos_signals').then((_) => _loadData());
-              } else {
+                return;
+              }
+
+              // Determine role based on actual loaded request data
+              final isOwner = _incomingRequests.any((req) => req['id'] == reqId && req['_is_urgent_offer'] != true);
+              final isRequester = _outgoingRequests.any((req) => req['id'] == reqId && req['_is_urgent_offer'] != true);
+
+              if (isOwner) {
+                context.push('/owner-request-detail/$reqId').then((_) => _loadData());
+              } else if (isRequester) {
                 context.push('/requester-request-detail/$reqId').then((_) => _loadData());
+              } else {
+                // Fallback to original logic if request data isn't loaded yet
+                final ownerTypes = [
+                  'request_received', 
+                  'handoff_pin_generated', 
+                  'return_requested', 
+                  'return_pin_generated'
+                ];
+                if (ownerTypes.contains(notif.type)) {
+                  context.push('/owner-request-detail/$reqId').then((_) => _loadData());
+                } else {
+                  context.push('/requester-request-detail/$reqId').then((_) => _loadData());
+                }
               }
             }
         },
@@ -399,12 +412,26 @@ class _ActivityPageState extends State<ActivityPage> with TickerProviderStateMix
   }
 
   Widget _buildRequestsList(bool isIncoming) {
-    final requests = isIncoming ? _incomingRequests : _outgoingRequests;
+    var requests = isIncoming ? _incomingRequests : _outgoingRequests;
     
+    // Filter out invalid requests (e.g. deleted listings or missing profiles)
+    requests = requests.where((data) {
+      if (data['_is_urgent_offer'] == true) {
+        final profileData = isIncoming ? (data['urgent_request'] != null ? data['urgent_request']['profiles'] : null) : data['profiles'];
+        return profileData != null;
+      }
+      final listing = data['listing'];
+      if (listing == null) return false;
+      final profileData = isIncoming ? data['profiles'] : listing['profiles'];
+      return profileData != null;
+    }).toList();
+
     final sortedRequests = List<Map<String, dynamic>>.from(requests);
     sortedRequests.sort((a, b) {
-      final aDate = DateTime.parse(a['created_at']);
-      final bDate = DateTime.parse(b['created_at']);
+      final aStr = a['created_at'];
+      final bStr = b['created_at'];
+      final aDate = aStr != null ? DateTime.tryParse(aStr.toString()) ?? DateTime.fromMillisecondsSinceEpoch(0) : DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = bStr != null ? DateTime.tryParse(bStr.toString()) ?? DateTime.fromMillisecondsSinceEpoch(0) : DateTime.fromMillisecondsSinceEpoch(0);
       return bDate.compareTo(aDate);
     });
 

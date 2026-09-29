@@ -55,8 +55,8 @@ class NotificationRepository {
     return _client
         .from('notifications')
         .stream(primaryKey: ['id'])
-        .eq('user_id', currentUserId)
         .order('created_at', ascending: false)
+        .map((data) => data.where((n) => n['user_id'] == currentUserId).toList())
         .handleError((error) {
           print('Supabase Realtime Stream Error: $error');
           // Swallow the error to prevent the app from crashing on hot restart/disconnects

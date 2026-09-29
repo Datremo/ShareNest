@@ -8,6 +8,8 @@ import '../../../core/data/models/listing.dart';
 import '../../../core/data/models/profile.dart';
 import '../../../core/data/repositories/request_repository.dart';
 import '../../../core/data/repositories/notification_repository.dart';
+import '../../../core/data/repositories/chat_repository.dart';
+import '../../messages/presentation/conversation_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class OwnerRequestDetailPage extends StatefulWidget {
@@ -456,7 +458,31 @@ class _OwnerRequestDetailPageState extends State<OwnerRequestDetailPage> {
               ),
             ),
             IconButton(
-              onPressed: () => context.push('/chat', extra: profile),
+              onPressed: () async {
+                 final chatRepo = ChatRepository();
+                 try {
+                   final convId = await chatRepo.createOrGetConversation(
+                      contextType: 'item_request',
+                      contextId: widget.request.id,
+                      otherUserId: profile.id,
+                   );
+                   if (context.mounted) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => ConversationPage(
+                            conversationId: convId ?? '',
+                            otherUserName: profile.displayName,
+                            contextLabel: 'Context: ${widget.listing.title}',
+                          ),
+                        ),
+                      );
+                   }
+                 } catch (e) {
+                   if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error starting chat: $e')));
+                   }
+                 }
+              },
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                 padding: const EdgeInsets.all(12),
@@ -504,18 +530,36 @@ class _OwnerRequestDetailPageState extends State<OwnerRequestDetailPage> {
     }
 
     if (_currentStatus == 'ACCEPTED') {
-      return SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 0,
+      return Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              onPressed: () => _showPinBottomSheet(isReturn: false),
+              child: const Text('Verify Handoff Code', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
           ),
-          onPressed: () => _showPinBottomSheet(isReturn: false),
-          child: const Text('Verify Handoff Code', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () => _updateStatus('CANCELLED'),
+              child: const Text('Cancel Transaction', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
       );
     }
     
@@ -543,6 +587,24 @@ class _OwnerRequestDetailPageState extends State<OwnerRequestDetailPage> {
       await _requestRepo.updateRequestStatus(widget.request.id, status);
       setState(() { _currentStatus = status; });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request $status')));
+      
+      try {
+        final chatRepo = ChatRepository();
+        final convId = await chatRepo.createOrGetConversation(
+            contextType: 'item_request',
+            contextId: widget.request.id,
+            otherUserId: widget.requester.id,
+        );
+        await chatRepo.sendMessage(
+            conversationId: convId ?? '',
+            content: 'Request was marked as $status by the owner.',
+            messageType: 'SYSTEM',
+        );
+      } catch (chatError) {
+        // Silently fail chat message injection so it doesn't break domain flow
+        print('Error injecting system event: $chatError');
+      }
+
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
@@ -607,51 +669,24 @@ class _OwnerRequestDetailPageState extends State<OwnerRequestDetailPage> {
       }
       
       if (success) {
-        setState(() { _currentStatus = (isReturn || isGiveMode) ? 'COMPLETED' : 'ACTIVE'; });
+        final newStatusStr = (isReturn || isGiveMode) ? 'COMPLETED' : 'ACTIVE';
+        setState(() { _currentStatus = newStatusStr; });
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code verified successfully!')));
         
-        // Send notifications
-        final notifRepo = NotificationRepository();
-        final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-        
-        if (isGiveMode) {
-          // Notify owner
-          if (currentUserId != null) {
-            await notifRepo.createNotification(
-              userId: currentUserId,
-              title: 'Item Given Successfully',
-              body: 'You successfully handed over ${widget.listing.title} to ${widget.requester.displayName}.',
-              type: 'request_update',
-              relatedId: widget.request.id,
-            );
-          }
-          // Notify requester
-          await notifRepo.createNotification(
-            userId: widget.request.requesterId,
-            title: 'Item Received Successfully',
-            body: 'You successfully received ${widget.listing.title}. Enjoy!',
-            type: 'request_update',
-            relatedId: widget.request.id,
+        try {
+          final chatRepo = ChatRepository();
+          final convId = await chatRepo.createOrGetConversation(
+              contextType: 'item_request',
+              contextId: widget.request.id,
+              otherUserId: widget.requester.id,
           );
-        } else if (isReturn) {
-          // Notify owner
-          if (currentUserId != null) {
-            await notifRepo.createNotification(
-              userId: currentUserId,
-              title: 'Item Returned',
-              body: '${widget.requester.displayName} returned ${widget.listing.title}.',
-              type: 'request_update',
-              relatedId: widget.request.id,
-            );
-          }
-          // Notify requester
-          await notifRepo.createNotification(
-            userId: widget.request.requesterId,
-            title: 'Return Complete',
-            body: 'You successfully returned ${widget.listing.title}.',
-            type: 'request_update',
-            relatedId: widget.request.id,
+          await chatRepo.sendMessage(
+              conversationId: convId ?? '',
+              content: isReturn ? 'Return code verified. Item returned.' : 'Handoff code verified. Item handed over.',
+              messageType: 'SYSTEM',
           );
+        } catch (chatError) {
+          print('Error injecting system event: $chatError');
         }
 
       } else {

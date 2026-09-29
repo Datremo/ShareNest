@@ -1,7 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/data/models/listing.dart';
@@ -46,7 +48,7 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
 
       final listingsRes = await Supabase.instance.client
           .from('listings')
-          .select('*, requests(id)')
+          .select('*, item_requests!item_requests_listing_id_fkey(id)')
           .eq('owner_id', user.id)
           .neq('status', 'HIDDEN')
           .order('created_at', ascending: false);
@@ -63,14 +65,14 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
           _listingRequestCounts = {};
           for (var l in listingsRes) {
             _myListings.add(Listing.fromJson(l));
-            _listingRequestCounts[l['id']] = (l['requests'] as List).length;
+            _listingRequestCounts[l['id']] = (l['item_requests'] as List?)?.length ?? 0;
           }
 
           _myUrgentRequests = [];
           _urgentOfferCounts = {};
           for (var u in urgentRes) {
             _myUrgentRequests.add(UrgentRequest.fromJson(u));
-            _urgentOfferCounts[u['id']] = (u['urgent_request_offers'] as List).length;
+            _urgentOfferCounts[u['id']] = (u['urgent_request_offers'] as List?)?.length ?? 0;
           }
 
           _isLoading = false;
@@ -90,65 +92,102 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.5),
         elevation: 0,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(color: Colors.transparent),
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1E293B)),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.primaryDark, size: 20),
           onPressed: () => context.pop(),
         ),
         title: Column(
           children: [
-            Text('My Posts', style: GoogleFonts.outfit(color: const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 22)),
-            Text('Manage your listings & requests', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 11)),
+            const Text('My Offerings', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w900, fontSize: 22, letterSpacing: -0.5)),
+            Text('Manage your listings & requests', style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w500)),
           ],
         ),
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: Colors.grey[500],
-          indicatorColor: AppColors.primary,
-          indicatorWeight: 3,
-          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
-          unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
-          tabs: const [
-            Tab(text: 'Listings'),
-            Tab(text: 'Need It Now'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Container(
+            height: 44,
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+            ),
+            child: TabBar(
+              controller: _tabController,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: AppColors.primary,
+                boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2))],
+              ),
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.grey.shade600,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              tabs: const [
+                Tab(text: 'Listings'),
+                Tab(text: 'Need It Now'),
+              ],
+            ),
+          ),
         ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : TabBarView(
-              controller: _tabController,
+          : Stack(
               children: [
-                _buildListingsTab(),
-                _buildUrgentTab(),
+                Positioned(
+                  top: 100, right: -50,
+                  child: Container(
+                    width: 200, height: 200,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      boxShadow: [BoxShadow(blurRadius: 100, color: AppColors.primary.withValues(alpha: 0.2))],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 100, left: -50,
+                  child: Container(
+                    width: 300, height: 300,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.blue.withValues(alpha: 0.05),
+                      boxShadow: [BoxShadow(blurRadius: 100, color: Colors.blue.withValues(alpha: 0.1))],
+                    ),
+                  ),
+                ),
+                TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildListingsTab(),
+                    _buildUrgentTab(),
+                  ],
+                ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primary,
-        onPressed: () {
-          if (_tabController.index == 0) {
-            context.push('/create_lend_post').then((_) => _fetchRealData());
-          } else {
-            context.push('/create_urgent_request').then((_) => _fetchRealData());
-          }
-        },
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: Text(
-          _tabController.index == 0 ? 'New Listing' : 'New Urgent Request',
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-      ),
     );
   }
 
   Widget _buildListingsTab() {
     return Column(
       children: [
+        const SizedBox(height: 140),
         Container(
           height: 60,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -184,11 +223,22 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
         Expanded(
           child: _filteredListings.isEmpty
               ? _buildEmptyState('No listings found', Icons.inventory_2_outlined)
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: _filteredListings.length,
-                  itemBuilder: (context, index) => _buildListingCard(_filteredListings[index]),
+              : AnimationLimiter(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 100),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: _filteredListings.length,
+                    itemBuilder: (context, index) => AnimationConfiguration.staggeredList(
+                      position: index,
+                      duration: const Duration(milliseconds: 400),
+                      child: SlideAnimation(
+                        verticalOffset: 50.0,
+                        child: FadeInAnimation(
+                          child: _buildListingCard(_filteredListings[index]),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
         ),
       ],
@@ -198,11 +248,22 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
   Widget _buildUrgentTab() {
     return _myUrgentRequests.isEmpty
         ? _buildEmptyState('No urgent requests found', Icons.bolt_rounded)
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            physics: const BouncingScrollPhysics(),
-            itemCount: _myUrgentRequests.length,
-            itemBuilder: (context, index) => _buildUrgentCard(_myUrgentRequests[index]),
+        : AnimationLimiter(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 140, bottom: 100),
+              physics: const BouncingScrollPhysics(),
+              itemCount: _myUrgentRequests.length,
+              itemBuilder: (context, index) => AnimationConfiguration.staggeredList(
+                position: index,
+                duration: const Duration(milliseconds: 400),
+                child: SlideAnimation(
+                  verticalOffset: 50.0,
+                  child: FadeInAnimation(
+                    child: _buildUrgentCard(_myUrgentRequests[index]),
+                  ),
+                ),
+              ),
+            ),
           );
   }
 
@@ -213,18 +274,22 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey[200]),
-            child: Icon(icon, size: 48, color: Colors.grey[400]),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.6),
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: Icon(icon, size: 48, color: Colors.grey.shade400),
           ),
           const SizedBox(height: 16),
-          Text(message, style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(message, style: const TextStyle(color: AppColors.primaryDark, fontSize: 18, fontWeight: FontWeight.w900)),
         ],
       ),
     );
   }
 
   Widget _buildListingCard(Listing listing) {
-    Color badgeColor = listing.mode.toUpperCase() == 'LEND' ? const Color(0xFF10B981) : const Color(0xFFF43F5E);
+    Color badgeColor = listing.mode.toUpperCase() == 'LEND' ? AppColors.primary : AppColors.give;
     final hasImage = listing.photoUrls.isNotEmpty;
     final reqCount = _listingRequestCounts[listing.id] ?? 0;
 
@@ -233,69 +298,76 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[200]!),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
+          color: Colors.white.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white, width: 1.5),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 5))],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(16)),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: hasImage
-                      ? Image.network(listing.photoUrls.first, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
-                      : const Icon(Icons.image, color: Colors.grey),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(16)),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: hasImage
+                          ? Image.network(listing.photoUrls.first, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
+                          : const Icon(Icons.image, color: Colors.grey),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                          child: Text(listing.mode.toUpperCase(), style: GoogleFonts.inter(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: badgeColor.withValues(alpha: 0.2))),
+                              child: Text(listing.mode.toUpperCase(), style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.w900)),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: listing.status == 'ACTIVE' ? AppColors.primary.withValues(alpha: 0.1) : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: listing.status == 'ACTIVE' ? AppColors.primary.withValues(alpha: 0.2) : Colors.grey.shade300)
+                              ),
+                              child: Text(listing.status, style: TextStyle(
+                                color: listing.status == 'ACTIVE' ? AppColors.primary : Colors.grey.shade600,
+                                fontSize: 10, fontWeight: FontWeight.w900
+                              )),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: listing.status == 'ACTIVE' ? const Color(0xFF10B981).withValues(alpha: 0.1) : Colors.grey[100],
-                            borderRadius: BorderRadius.circular(6)
-                          ),
-                          child: Text(listing.status, style: GoogleFonts.inter(
-                            color: listing.status == 'ACTIVE' ? const Color(0xFF10B981) : Colors.grey[600],
-                            fontSize: 10, fontWeight: FontWeight.bold
-                          )),
+                        const SizedBox(height: 8),
+                        Text(listing.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.2), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.people_alt_rounded, size: 14, color: Colors.grey.shade500),
+                            const SizedBox(width: 4),
+                            Text('$reqCount requests', style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                            const Spacer(),
+                            Text(DateFormat('MMM d').format(listing.createdAt ?? DateTime.now()), style: TextStyle(fontSize: 12, color: Colors.grey.shade400, fontWeight: FontWeight.w600)),
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(listing.title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.people_alt_outlined, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
-                        Text('$reqCount requests', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-                        const Spacer(),
-                        Text(DateFormat('MMM d').format(listing.createdAt ?? DateTime.now()), style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[400])),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -309,67 +381,74 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[200]!),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
+          color: Colors.white.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white, width: 1.5),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 5))],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: const Color(0xFFEF4444).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.bolt_rounded, size: 12, color: Color(0xFFEF4444)),
-                        const SizedBox(width: 4),
-                        Text('NEED IT NOW', style: GoogleFonts.inter(color: const Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(color: const Color(0xFFEF4444).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.2))),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFFEF4444)),
+                            const SizedBox(width: 4),
+                            const Text('NEED IT NOW', style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: request.status == 'ACTIVE' ? AppColors.primary.withValues(alpha: 0.1) : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: request.status == 'ACTIVE' ? AppColors.primary.withValues(alpha: 0.2) : Colors.grey.shade300),
+                        ),
+                        child: Text(request.status, style: TextStyle(
+                          color: request.status == 'ACTIVE' ? AppColors.primary : Colors.grey.shade600,
+                          fontSize: 10, fontWeight: FontWeight.w900
+                        )),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: request.status == 'ACTIVE' ? const Color(0xFF10B981).withValues(alpha: 0.1) : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(6)
-                    ),
-                    child: Text(request.status, style: GoogleFonts.inter(
-                      color: request.status == 'ACTIVE' ? const Color(0xFF10B981) : Colors.grey[600],
-                      fontSize: 10, fontWeight: FontWeight.bold
-                    )),
+                  const SizedBox(height: 16),
+                  Text(request.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.3), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.blue.withValues(alpha: 0.2))),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.handshake_rounded, size: 14, color: Colors.blue),
+                            const SizedBox(width: 4),
+                            Text('$offerCount offers', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.blue)),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.access_time_filled, size: 14, color: Colors.grey.shade400),
+                      const SizedBox(width: 6),
+                      Text('Needed by ${request.neededBy ?? 'ASAP'}', style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(request.title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)), maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.local_offer_outlined, size: 12, color: Colors.blue),
-                        const SizedBox(width: 4),
-                        Text('$offerCount offers', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue)),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.access_time_filled, size: 14, color: Colors.grey[400]),
-                  const SizedBox(width: 4),
-                  Text('Needed by ${request.neededBy ?? 'ASAP'}', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[500])),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),

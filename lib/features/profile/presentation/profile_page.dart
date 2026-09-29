@@ -45,7 +45,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       final results = await Future.wait([
         _profileRepo.getProfile(userId),
         _profileRepo.getProfileStats(userId),
-        _listingRepo.getUserListings(),
+        _listingRepo.getUserListings(userId),
       ]);
 
       final profile = results[0] as Profile?;
@@ -73,7 +73,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   Future<void> _signOut() async {
     await Supabase.instance.client.auth.signOut();
     if (mounted) {
-      context.go('/login');
+      context.go('/login_username');
     }
   }
 
@@ -97,9 +97,12 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           onPressed: () => context.pop(),
         ),
       ) : null,
-      body: SingleChildScrollView(
-        padding: EdgeInsets.zero,
-        physics: const ClampingScrollPhysics(),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        color: AppColors.primary,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.zero,
+          physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           children: [
             _buildHeaderAndProfileInfo(),
@@ -120,7 +123,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             const SizedBox(height: 100), // padding for bottom nav
           ],
         ),
-      ),
+      )),
     );
   }
 
@@ -165,6 +168,25 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
                 ),
                 child: const Icon(Icons.settings, color: AppColors.primaryDark, size: 22),
+              ),
+            ),
+          ),
+          
+        // Back Button top left
+        if (!_isCurrentUser && Navigator.of(context).canPop())
+          Positioned(
+            top: 45,
+            left: 20,
+            child: GestureDetector(
+              onTap: () => context.pop(),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+                ),
+                child: const Icon(Icons.arrow_back, color: AppColors.primaryDark, size: 22),
               ),
             ),
           ),
@@ -252,23 +274,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     ),
                 ],
               ),
-              if (_isCurrentUser)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.push('/test-map');
-                    },
-                    icon: const Icon(Icons.map, size: 18),
-                    label: Text('Open Test Map (MapLibre)', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                  ),
-                ),
+
               if (_profile?.username != null && _profile!.username!.isNotEmpty) ...[
                 const SizedBox(height: 2),
                 Text(
@@ -292,7 +298,10 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 children: [
                   const Icon(Icons.calendar_today, size: 11, color: Color(0xFF64748B)),
                   const SizedBox(width: 4),
-                  Text('Member since Jan 2026', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                  Text(
+                    'Member since ${_profile?.createdAt != null ? "${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][_profile!.createdAt!.month - 1]} ${_profile!.createdAt!.year}" : "Jan 2026"}',
+                    style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w600),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),

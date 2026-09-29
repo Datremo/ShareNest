@@ -9,6 +9,7 @@ import '../../../core/data/repositories/listing_repository.dart';
 import '../../../core/data/repositories/profile_repository.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/models/profile.dart';
+import '../../../core/data/repositories/chat_repository.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,7 +21,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final ListingRepository _listingRepository = ListingRepository();
   final ProfileRepository _profileRepository = ProfileRepository();
+  final ChatRepository _chatRepository = ChatRepository();
   Profile? _profile;
+  int _unreadChatCount = 0;
   Map<String, int> _globalStats = {
     'neighbours': 0,
     'items': 0,
@@ -35,6 +38,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _loadProfile();
     _loadGlobalStats();
+    _loadChatStats();
     _fetchListings();
     
     // Auto-refresh stats when tables change
@@ -85,6 +89,34 @@ class _HomePageState extends State<HomePage> {
     final stats = await _profileRepository.getGlobalStats();
     if (mounted) {
       setState(() => _globalStats = stats);
+    }
+  }
+
+  Future<void> _loadChatStats() async {
+    final convs = await _chatRepository.getConversationsWithDetails();
+    int unreadCount = 0;
+    for (var conv in convs) {
+       final membership = (conv['my_membership'] as List<dynamic>?)?.firstOrNull;
+       if (membership == null || conv['status'] == 'ARCHIVED') continue;
+       final messages = List<Map<String, dynamic>>.from(conv['messages'] ?? []);
+       if (messages.isEmpty) continue;
+       messages.sort((a, b) => (b['created_at'] as String).compareTo(a['created_at'] as String));
+       final lastReadAtStr = membership['last_read_at'] as String?;
+       final msgCreatedAtStr = messages.first['created_at'] as String?;
+       if (msgCreatedAtStr != null) {
+          final msgTime = DateTime.parse(msgCreatedAtStr);
+          if (lastReadAtStr == null) {
+             unreadCount++;
+          } else {
+             final readTime = DateTime.parse(lastReadAtStr);
+             if (msgTime.isAfter(readTime)) {
+                unreadCount++;
+             }
+          }
+       }
+    }
+    if (mounted) {
+       setState(() => _unreadChatCount = unreadCount);
     }
   }
 
@@ -291,19 +323,74 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 3)),
+                          BoxShadow(
+                            color: const Color(0xFF34C759).withValues(alpha: _unreadChatCount > 0 ? 0.2 : 0.05), 
+                            blurRadius: _unreadChatCount > 0 ? 12 : 8, 
+                            offset: const Offset(0, 4)
+                          ),
                         ],
+                        border: Border.all(
+                          color: _unreadChatCount > 0 ? const Color(0xFF34C759).withValues(alpha: 0.3) : Colors.transparent,
+                          width: 1.5,
+                        ),
                       ),
-                      child: IconButton(
-                        icon: const Icon(CupertinoIcons.chat_bubble_text_fill, color: Color(0xFF1E293B), size: 20),
-                        onPressed: () => context.push('/messages'),
-                        padding: EdgeInsets.zero,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Center(
+                            child: IconButton(
+                              icon: Icon(
+                                _unreadChatCount > 0 ? CupertinoIcons.chat_bubble_text_fill : CupertinoIcons.chat_bubble_text, 
+                                color: _unreadChatCount > 0 ? const Color(0xFF1D5A50) : const Color(0xFF1E293B), 
+                                size: 22
+                              ),
+                              onPressed: () => context.push('/messages').then((_) => _loadChatStats()),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ),
+                          if (_unreadChatCount > 0)
+                            Positioned(
+                              top: -4,
+                              right: -4,
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween(begin: 0.0, end: 1.0),
+                                duration: const Duration(milliseconds: 600),
+                                curve: Curves.elasticOut,
+                                builder: (context, value, child) {
+                                  return Transform.scale(
+                                    scale: value,
+                                    child: child,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE74C3C), // vibrant red
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                    boxShadow: [
+                                      BoxShadow(color: const Color(0xFFE74C3C).withValues(alpha: 0.4), blurRadius: 4, offset: const Offset(0, 2))
+                                    ],
+                                  ),
+                                  child: Text(
+                                    _unreadChatCount > 9 ? '9+' : _unreadChatCount.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white, 
+                                      fontSize: 10, 
+                                      fontWeight: FontWeight.bold, 
+                                      height: 1.0
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ],

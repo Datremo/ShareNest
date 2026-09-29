@@ -27,15 +27,7 @@ class LocationResult {
 
 class LocationService {
   Future<LocationState> checkAndRequestPermissions() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return LocationState.servicesDisabled;
-    }
-
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
@@ -45,6 +37,11 @@ class LocationService {
 
     if (permission == LocationPermission.deniedForever) {
       return LocationState.permissionDeniedForever;
+    }
+
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return LocationState.servicesDisabled;
     }
 
     // Determine precision (fallback to precise to avoid UnimplementedError on unsupported platforms)

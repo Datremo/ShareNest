@@ -19,6 +19,9 @@ Profile _$ProfileFromJson(Map<String, dynamic> json) => Profile(
   interests: (json['interests'] as List<dynamic>?)
       ?.map((e) => e as String)
       .toList(),
+  createdAt: json['created_at'] == null
+      ? null
+      : DateTime.parse(json['created_at'] as String),
   updatedAt: json['updated_at'] == null
       ? null
       : DateTime.parse(json['updated_at'] as String),
@@ -39,6 +42,7 @@ Map<String, dynamic> _$ProfileToJson(Profile instance) => <String, dynamic>{
   'items_shared': instance.itemsShared,
   'successful_exchanges': instance.successfulExchanges,
   'interests': instance.interests,
+  'created_at': instance.createdAt?.toIso8601String(),
   'updated_at': instance.updatedAt?.toIso8601String(),
   'is_verified': instance.isVerified,
   'rating': instance.rating,

@@ -86,15 +86,15 @@ class ListingRepository {
     return (response as List).length;
   }
 
-  Future<List<Listing>> getUserListings() async {
+  Future<List<Listing>> getUserListings([String? userId]) async {
     try {
-      final user = _client.auth.currentUser;
-      if (user == null) return [];
+      final idToUse = userId ?? _client.auth.currentUser?.id;
+      if (idToUse == null) return [];
       
       final response = await _client
           .from('listings')
           .select()
-          .eq('owner_id', user.id)
+          .eq('owner_id', idToUse)
           .order('created_at', ascending: false);
       return (response as List).map((e) => Listing.fromJson(e)).toList();
     } catch (e) {
