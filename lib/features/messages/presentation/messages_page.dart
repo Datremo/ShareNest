@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../../../core/theme/app_colors.dart';
@@ -25,10 +26,35 @@ class _MessagesPageState extends State<MessagesPage> {
   List<Map<String, dynamic>> get _filteredConversations {
     if (_searchQuery.isEmpty) return _conversations;
     final lowerQuery = _searchQuery.toLowerCase();
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+
     return _conversations.where((conv) {
-      final title = (conv['title'] as String?)?.toLowerCase() ?? '';
-      final otherUser = (conv['other_user'] as String?)?.toLowerCase() ?? '';
-      final lastMsg = (conv['last_message'] as String?)?.toLowerCase() ?? '';
+      // Extract other user name
+      final allMembers = conv['all_members'] as List<dynamic>? ?? [];
+      final otherMembers = allMembers.where((m) => m['profile_id'] != currentUserId).toList();
+      String otherUser = '';
+      if (otherMembers.isNotEmpty && otherMembers.first['profiles'] != null) {
+        otherUser = (otherMembers.first['profiles']['display_name'] as String?)?.toLowerCase() ?? '';
+      }
+
+      // Extract item title
+      String title = '';
+      if (conv['listing'] != null) {
+        title = (conv['listing']['title'] as String?)?.toLowerCase() ?? '';
+      } else if (conv['item_request'] != null) {
+        title = (conv['item_request']['listings']?['title'] as String?)?.toLowerCase() ?? '';
+      } else if (conv['borrow_request'] != null) {
+        title = (conv['borrow_request']['listings']?['title'] as String?)?.toLowerCase() ?? '';
+      }
+
+      // Extract last message
+      String lastMsg = '';
+      final messages = List<Map<String, dynamic>>.from(conv['messages'] ?? []);
+      if (messages.isNotEmpty) {
+        messages.sort((a, b) => (b['created_at'] as String).compareTo(a['created_at'] as String));
+        lastMsg = (messages.first['content'] as String?)?.toLowerCase() ?? '';
+      }
+
       return title.contains(lowerQuery) || otherUser.contains(lowerQuery) || lastMsg.contains(lowerQuery);
     }).toList();
   }
@@ -37,6 +63,31 @@ class _MessagesPageState extends State<MessagesPage> {
   void initState() {
     super.initState();
     _loadConversations();
+    
+    Supabase.instance.client.channel('messages_page_messages').onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'messages',
+      callback: (payload) {
+        _loadConversations();
+      },
+    ).subscribe();
+
+    Supabase.instance.client.channel('messages_page_conversations').onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'conversations',
+      callback: (payload) {
+        _loadConversations();
+      },
+    ).subscribe();
+  }
+
+  @override
+  void dispose() {
+    Supabase.instance.client.channel('messages_page_messages').unsubscribe();
+    Supabase.instance.client.channel('messages_page_conversations').unsubscribe();
+    super.dispose();
   }
 
   Future<void> _loadConversations() async {
@@ -218,6 +269,7 @@ class _MessagesPageState extends State<MessagesPage> {
   }
 
   int _getNeedsActionCount() {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     return _filteredConversations.where((conv) {
       final membership = (conv['my_membership'] as List<dynamic>?)?.firstOrNull;
       // We check if it requires attention (unread messages or specific request status).
@@ -230,8 +282,9 @@ class _MessagesPageState extends State<MessagesPage> {
       
       final lastReadAtStr = membership['last_read_at'] as String?;
       final msgCreatedAtStr = messages.first['created_at'] as String?;
+      final msgSenderId = messages.first['sender_id'] as String?;
       
-      if (msgCreatedAtStr != null) {
+      if (msgCreatedAtStr != null && msgSenderId != currentUserId) {
          final msgTime = DateTime.parse(msgCreatedAtStr);
          if (lastReadAtStr == null) return true;
          final readTime = DateTime.parse(lastReadAtStr);
@@ -291,8 +344,9 @@ class _MessagesPageState extends State<MessagesPage> {
       
       final lastReadAtStr = membership['last_read_at'] as String?;
       final msgCreatedAtStr = messages.first['created_at'] as String?;
+      final msgSenderId = messages.first['sender_id'] as String?;
       
-      if (msgCreatedAtStr != null) {
+      if (msgCreatedAtStr != null && msgSenderId != currentUserId) {
          final msgTime = DateTime.parse(msgCreatedAtStr);
          if (lastReadAtStr == null) return true;
          final readTime = DateTime.parse(lastReadAtStr);
@@ -305,8 +359,10 @@ class _MessagesPageState extends State<MessagesPage> {
       final allMembers = conv['all_members'] as List<dynamic>? ?? [];
       final otherMembers = allMembers.where((m) => m['profile_id'] != currentUserId).toList();
       String otherName = 'Unknown';
+      String otherAvatar = '';
       if (otherMembers.isNotEmpty && otherMembers.first['profiles'] != null) {
         otherName = otherMembers.first['profiles']['display_name'] ?? 'Unknown';
+        otherAvatar = otherMembers.first['profiles']['photo_url'] ?? '';
       }
 
       String itemTitle = 'Item';
@@ -319,6 +375,17 @@ class _MessagesPageState extends State<MessagesPage> {
         itemTitle = conv['item_request']['listings']?['title'] ?? 'Item Request';
         final photos = conv['item_request']['listings']?['photo_urls'] as List<dynamic>?;
         if (photos != null && photos.isNotEmpty) photoUrl = photos.first.toString();
+      } else if (conv['urgent_offer'] != null) {
+        String offerTypeStr = 'OFFER';
+        final dur = conv['urgent_offer']['available_for_duration'];
+        if (dur != null) {
+          try {
+            final parsed = dur is String ? jsonDecode(dur) : dur;
+            offerTypeStr = parsed['type']?.toString().toUpperCase() ?? 'OFFER';
+          } catch (_) {}
+        }
+        itemTitle = 'Urgent $offerTypeStr: ' + (conv['urgent_offer']['urgent_requests']?['title'] ?? 'Request');
+        // Urgent offers don't have direct photos in the same way, but we could add if needed
       } else if (conv['borrow_request'] != null) {
         itemTitle = conv['borrow_request']['listings']?['title'] ?? 'Borrow Request';
         final photos = conv['borrow_request']['listings']?['photo_urls'] as List<dynamic>?;
@@ -372,6 +439,7 @@ class _MessagesPageState extends State<MessagesPage> {
         buttonText: buttonText,
         timeAgo: timeAgo,
         imageUrl: photoUrl,
+        userAvatarUrl: otherAvatar,
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -394,6 +462,7 @@ class _MessagesPageState extends State<MessagesPage> {
     required String buttonText,
     required String timeAgo,
     required String imageUrl,
+    String? userAvatarUrl,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -438,7 +507,10 @@ class _MessagesPageState extends State<MessagesPage> {
                       child: CircleAvatar(
                         radius: 10,
                         backgroundColor: AppColors.primary,
-                        child: Text(name[0], style: const TextStyle(fontSize: 10, color: Colors.white)),
+                        backgroundImage: userAvatarUrl != null && userAvatarUrl.isNotEmpty ? NetworkImage(userAvatarUrl) : null,
+                        child: userAvatarUrl == null || userAvatarUrl.isEmpty
+                          ? Text(name.isNotEmpty ? name[0] : '?', style: const TextStyle(fontSize: 10, color: Colors.white))
+                          : null,
                       ),
                     ),
                   )
@@ -494,8 +566,10 @@ class _MessagesPageState extends State<MessagesPage> {
       final otherMembers = allMembers.where((m) => m['profile_id'] != currentUserId).toList();
 
       String otherName = 'Unknown';
+      String otherAvatar = '';
       if (otherMembers.isNotEmpty && otherMembers.first['profiles'] != null) {
         otherName = otherMembers.first['profiles']['display_name'] ?? 'Unknown';
+        otherAvatar = otherMembers.first['profiles']['photo_url'] ?? '';
       }
 
       String lastMsg = 'Started conversation';
@@ -508,9 +582,10 @@ class _MessagesPageState extends State<MessagesPage> {
       final myMembership = (conv['my_membership'] as List<dynamic>?)?.firstOrNull;
       final lastReadAtStr = myMembership?['last_read_at'] as String?;
       final msgCreatedAtStr = messages.isNotEmpty ? messages.first['created_at'] as String? : null;
+      final msgSenderId = messages.isNotEmpty ? messages.first['sender_id'] as String? : null;
       
       int unread = 0;
-      if (msgCreatedAtStr != null) {
+      if (msgCreatedAtStr != null && msgSenderId != currentUserId) {
          final msgTime = DateTime.parse(msgCreatedAtStr);
          if (lastReadAtStr == null) {
             unread = 1;
@@ -527,15 +602,27 @@ class _MessagesPageState extends State<MessagesPage> {
         itemTitle = conv['item_request']['listings']?['title'] ?? 'Item Request';
       } else if (conv['borrow_request'] != null) {
         itemTitle = conv['borrow_request']['listings']?['title'] ?? 'Borrow Request';
+      } else if (conv['urgent_offer'] != null) {
+        String offerTypeStr = 'OFFER';
+        final dur = conv['urgent_offer']['available_for_duration'];
+        if (dur != null) {
+          try {
+            final parsed = dur is String ? jsonDecode(dur) : dur;
+            offerTypeStr = parsed['type']?.toString().toUpperCase() ?? 'OFFER';
+          } catch (_) {}
+        }
+        itemTitle = 'Urgent $offerTypeStr: ' + (conv['urgent_offer']['urgent_requests']?['title'] ?? 'Request');
       }
 
       return _buildConversationRow(
+        convId: conv['id'],
         name: otherName,
         itemTitle: itemTitle,
         lastMessage: lastMsg,
         timeAgo: timeAgo,
         unreadCount: unread,
         statusBadge: null, // Logic to determine if "Offer sent" badge should show
+        avatarUrl: otherAvatar,
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -552,6 +639,7 @@ class _MessagesPageState extends State<MessagesPage> {
   }
   
   List<Widget> _buildArchivedItems() {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     final archived = _filteredConversations.where((conv) {
       final membership = (conv['my_membership'] as List<dynamic>?)?.firstOrNull;
       return membership != null && conv['status'] == 'ARCHIVED';
@@ -559,23 +647,124 @@ class _MessagesPageState extends State<MessagesPage> {
     
     archived.sort((a, b) => (b['updated_at'] ?? '').compareTo(a['updated_at'] ?? ''));
 
-    // ... Need to implement the archived items UI similarly to active, but we can reuse _buildConversationRow
-    return []; // Left empty for now, will implement full later if needed
+    return archived.map((conv) {
+      final allMembers = conv['all_members'] as List<dynamic>? ?? [];
+      final messages = List<Map<String, dynamic>>.from(conv['messages'] ?? []);
+      messages.sort((a, b) => (b['created_at'] as String).compareTo(a['created_at'] as String));
+
+      final otherMembers = allMembers.where((m) => m['profile_id'] != currentUserId).toList();
+
+      String otherName = 'Unknown';
+      String otherAvatar = '';
+      if (otherMembers.isNotEmpty && otherMembers.first['profiles'] != null) {
+        otherName = otherMembers.first['profiles']['display_name'] ?? 'Unknown';
+        otherAvatar = otherMembers.first['profiles']['photo_url'] ?? '';
+      }
+
+      String lastMsg = 'Started conversation';
+      String timeAgo = '';
+      if (messages.isNotEmpty) {
+        lastMsg = messages.first['content'] ?? '';
+        timeAgo = _formatTime(messages.first['created_at']);
+      }
+      
+      String itemTitle = 'Archived Chat';
+      if (conv['listing'] != null) {
+        itemTitle = conv['listing']['title'] ?? 'Listing';
+      } else if (conv['item_request'] != null) {
+        itemTitle = conv['item_request']['listings']?['title'] ?? 'Item Request';
+      } else if (conv['borrow_request'] != null) {
+        itemTitle = conv['borrow_request']['listings']?['title'] ?? 'Borrow Request';
+      } else if (conv['urgent_offer'] != null) {
+        String offerTypeStr = 'OFFER';
+        final dur = conv['urgent_offer']['available_for_duration'];
+        if (dur != null) {
+          try {
+            final parsed = dur is String ? jsonDecode(dur) : dur;
+            offerTypeStr = parsed['type']?.toString().toUpperCase() ?? 'OFFER';
+          } catch (_) {}
+        }
+        itemTitle = 'Urgent $offerTypeStr: ' + (conv['urgent_offer']['urgent_requests']?['title'] ?? 'Request');
+      }
+
+      return Opacity(
+        opacity: 0.6,
+        child: _buildConversationRow(
+          convId: conv['id'],
+          name: otherName,
+          itemTitle: itemTitle,
+          lastMessage: lastMsg,
+          timeAgo: timeAgo,
+          unreadCount: 0, // Assume no badges for archived items
+          statusBadge: 'Closed', 
+          avatarUrl: otherAvatar,
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ConversationPage(
+                  conversationId: conv['id'],
+                  otherUserName: otherName,
+                  contextLabel: 'Context',
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }).toList();
   }
 
   Widget _buildConversationRow({
+    required String convId,
     required String name,
     required String itemTitle,
     required String lastMessage,
     required String timeAgo,
     int unreadCount = 0,
     String? statusBadge,
+    String? avatarUrl,
     VoidCallback? onTap,
   }) {
     final hasUnread = unreadCount > 0;
     
     return InkWell(
       onTap: onTap,
+      onLongPress: () async {
+        final bool? confirm = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Delete Conversation"),
+              content: const Text("Are you sure you want to delete this conversation?"),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text("CANCEL"),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text("DELETE", style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            );
+          },
+        );
+
+        if (confirm == true) {
+          try {
+            await _chatRepo.deleteConversation(convId);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Conversation deleted')));
+              _loadConversations();
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting conversation: $e')));
+              _loadConversations();
+            }
+          }
+        }
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
         padding: const EdgeInsets.all(12.0),
@@ -592,7 +781,10 @@ class _MessagesPageState extends State<MessagesPage> {
             CircleAvatar(
               radius: 24,
               backgroundColor: Colors.grey.shade200,
-              child: Text(name[0], style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+              child: avatarUrl == null || avatarUrl.isEmpty
+                  ? Text(name.isNotEmpty ? name[0] : '?', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))
+                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(

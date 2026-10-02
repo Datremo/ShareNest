@@ -199,6 +199,7 @@ class _CreateLendPostPageState extends State<CreateLendPostPage> {
           'includedItems': _includedItems,
           'returnPeriod': '${_returnPeriodNumberController.text.trim()} $_returnPeriodUnit',
         },
+        expiresAt: _availableUntil,
       );
 
       await _listingRepository.createListing(listing);

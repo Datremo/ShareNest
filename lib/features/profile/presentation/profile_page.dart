@@ -158,17 +158,34 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           Positioned(
             top: 45,
             right: 20,
-            child: GestureDetector(
-              onTap: () => context.push('/settings'),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => context.push('/guide'),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+                    ),
+                    child: const Icon(Icons.help_outline, color: AppColors.primaryDark, size: 22),
+                  ),
                 ),
-                child: const Icon(Icons.settings, color: AppColors.primaryDark, size: 22),
-              ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () => context.push('/settings'),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+                    ),
+                    child: const Icon(Icons.settings, color: AppColors.primaryDark, size: 22),
+                  ),
+                ),
+              ],
             ),
           ),
           
@@ -314,6 +331,33 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF475569), height: 1.4, fontWeight: FontWeight.w500),
                 ),
               ),
+              if (_profile?.interests != null && _profile!.interests!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: _profile!.interests!.map((interest) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        interest,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryDark,
+                        ),
+                      ),
+                    )).toList(),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               // "Small actions" Banner
               Padding(

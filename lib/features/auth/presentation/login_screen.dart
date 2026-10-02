@@ -36,7 +36,12 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (mounted) context.go('/home');
     } on AuthException catch (e) {
-      _showMessage(e.message);
+      final msg = e.message.toLowerCase();
+      if (msg.contains('socket') || msg.contains('host lookup') || msg.contains('http') || msg.contains('timeout')) {
+        _showMessage('Network error. Please check your internet connection.');
+      } else {
+        _showMessage(e.message);
+      }
     } catch (e) {
       _showMessage('Login failed. Please check your credentials.');
     } finally {

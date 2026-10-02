@@ -33,6 +33,8 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   bool _isLoadingRequests = true;
   bool _hasActiveOrAcceptedRequest = false;
   String? _currentUserRequestStatus;
+  String? _currentRequestId;
+  Map<String, dynamic>? _activeRequestForOwner;
 
   List<String> get _images => _currentListing.photoUrls;
   bool get _isOwner => Supabase.instance.client.auth.currentUser?.id == _currentListing.ownerId;
@@ -70,10 +72,21 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
             orElse: () => <String, dynamic>{},
           );
           
-          _currentUserRequestStatus = myRequest.isNotEmpty ? myRequest['status'] as String : null;
+          if (myRequest.isNotEmpty) {
+            _currentUserRequestStatus = myRequest['status'] as String;
+            _currentRequestId = myRequest['id'] as String;
+          } else {
+            _currentUserRequestStatus = null;
+            _currentRequestId = null;
+          }
+          
+          _activeRequestForOwner = requests.cast<Map<String, dynamic>>().firstWhere(
+             (r) => ['ACCEPTED', 'ACTIVE', 'HANDED_OFF', 'RETURN_REQUESTED'].contains(r['status']),
+             orElse: () => <String, dynamic>{},
+          );
           
           _hasActiveOrAcceptedRequest = requests.any((r) => 
-             ['ACCEPTED', 'ACTIVE', 'RETURN_REQUESTED'].contains(r['status'])
+             ['ACCEPTED', 'ACTIVE', 'HANDED_OFF', 'RETURN_REQUESTED'].contains(r['status'])
           );
         });
       }
@@ -481,44 +494,45 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                     children: [
                       const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
                       const SizedBox(width: 4),
-                      Text('${_ownerProfile!.trustScore} Trust Score', style: const TextStyle(fontSize: 14, color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
+                      Text('${_ownerProfile!.calculatedTrustScore} Trust Score', style: const TextStyle(fontSize: 14, color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ],
               ),
             ),
-            IconButton(
-              onPressed: () async {
-                 try {
-                   final _chatRepo = ChatRepository();
-                   final convId = await _chatRepo.createOrGetConversation(
-                      contextType: 'listing',
-                      contextId: _currentListing.id,
-                      otherUserId: _ownerProfile!.id,
-                   );
-                   if (context.mounted) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => ConversationPage(
-                            conversationId: convId ?? '',
-                            otherUserName: _ownerProfile!.displayName,
-                            contextLabel: 'Context: ${_currentListing.title}',
+            if (!_isOwner)
+              IconButton(
+                onPressed: () async {
+                   try {
+                     final _chatRepo = ChatRepository();
+                     final convId = await _chatRepo.createOrGetConversation(
+                        contextType: 'listing',
+                        contextId: _currentListing.id,
+                        otherUserId: _ownerProfile!.id,
+                     );
+                     if (context.mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => ConversationPage(
+                              conversationId: convId ?? '',
+                              otherUserName: _ownerProfile!.displayName,
+                              contextLabel: 'Context: ${_currentListing.title}',
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                     }
+                   } catch (e) {
+                     if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error starting chat: $e')));
+                     }
                    }
-                 } catch (e) {
-                   if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error starting chat: $e')));
-                   }
-                 }
-              },
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                padding: const EdgeInsets.all(12),
+                },
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  padding: const EdgeInsets.all(12),
+                ),
+                icon: const Icon(Icons.chat_bubble_rounded, color: AppColors.primary, size: 24),
               ),
-              icon: const Icon(Icons.chat_bubble_rounded, color: AppColors.primary, size: 24),
-            ),
           ],
         ),
       ),
@@ -625,41 +639,69 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                           ),
                         )
                       : _isOwner
-                          ? GlassButton(
-                              label: 'View All Requests',
-                              icon: Icons.inbox_rounded,
-                              onPressed: () {
-                                context.push('/owner_requests_list', extra: _currentListing);
-                              },
-                            )
+                          ? (_activeRequestForOwner != null && _activeRequestForOwner!.isNotEmpty)
+                              ? GestureDetector(
+                                  onTap: () {
+                                    if (_activeRequestForOwner!['id'] != null) {
+                                      context.push('/owner-request-detail/${_activeRequestForOwner!['id']}');
+                                    }
+                                  },
+                                  child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green[100],
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.receipt_long_rounded, color: Colors.green),
+                                          SizedBox(width: 8),
+                                          Text('View Receipt ->', style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    ),
+                                )
+                              : GlassButton(
+                                  label: 'View All Requests',
+                                  icon: Icons.inbox_rounded,
+                                  onPressed: () {
+                                    context.push('/owner_requests_list', extra: _currentListing);
+                                  },
+                                )
                           : _currentUserRequestStatus != null
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  decoration: BoxDecoration(
-                                    color: _currentUserRequestStatus == 'PENDING' ? Colors.blue[100] : Colors.green[100],
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        _currentUserRequestStatus == 'PENDING' ? Icons.pending_actions : Icons.check_circle_outline,
-                                        color: _currentUserRequestStatus == 'PENDING' ? Colors.blue : Colors.green,
+                              ? GestureDetector(
+                                  onTap: () {
+                                    if (_currentRequestId != null) {
+                                      context.push('/requester-request-detail/$_currentRequestId');
+                                    }
+                                  },
+                                  child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      decoration: BoxDecoration(
+                                        color: _currentUserRequestStatus == 'PENDING' ? Colors.blue[100] : Colors.green[100],
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        _currentUserRequestStatus == 'PENDING' ? 'Request Pending' : 
-                                        _currentUserRequestStatus == 'ACCEPTED' ? 'Request Accepted' :
-                                        _currentUserRequestStatus == 'ACTIVE' ? 'Transaction Active' :
-                                        _currentUserRequestStatus == 'RETURN_REQUESTED' ? 'Return Pending' : 'View Request',
-                                        style: TextStyle(
-                                          color: _currentUserRequestStatus == 'PENDING' ? Colors.blue : Colors.green,
-                                          fontSize: 16, 
-                                          fontWeight: FontWeight.bold
-                                        ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            _currentUserRequestStatus == 'PENDING' ? Icons.pending_actions : Icons.receipt_long_rounded,
+                                            color: _currentUserRequestStatus == 'PENDING' ? Colors.blue : Colors.green,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            _currentUserRequestStatus == 'PENDING' ? 'Request Pending' : 
+                                            'View Receipt ->',
+                                            style: TextStyle(
+                                              color: _currentUserRequestStatus == 'PENDING' ? Colors.blue : Colors.green,
+                                              fontSize: 16, 
+                                              fontWeight: FontWeight.bold
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
                                 )
                               : _hasActiveOrAcceptedRequest
                                   ? Container(

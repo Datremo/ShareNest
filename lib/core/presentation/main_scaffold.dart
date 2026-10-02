@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import '../theme/app_colors.dart';
 import 'radial_share_menu.dart';
 import '../data/repositories/notification_repository.dart';
+import 'widgets/notification_permission_dialog.dart';
 import 'dart:async';
 class MainScaffold extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -32,6 +33,9 @@ class _MainScaffoldState extends State<MainScaffold>
       duration: const Duration(milliseconds: 350),
     );
     _initNotifications();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationPermissionDialog.checkAndShow(context);
+    });
   }
 
   void _initNotifications() async {

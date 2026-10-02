@@ -63,12 +63,34 @@ class _HomePageState extends State<HomePage> {
       callback: (payload) => _loadGlobalStats(),
     ).subscribe();
     
-    Supabase.instance.client.channel('public:profiles').onPostgresChanges(
+    Supabase.instance.client.channel('home_page_profiles').onPostgresChanges(
       event: PostgresChangeEvent.all,
       schema: 'public',
       table: 'profiles',
       callback: (payload) => _loadGlobalStats(),
     ).subscribe();
+
+    Supabase.instance.client.channel('home_page_messages').onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'messages',
+      callback: (payload) => _loadChatStats(),
+    ).subscribe();
+
+    Supabase.instance.client.channel('home_page_conversations').onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'conversations',
+      callback: (payload) => _loadChatStats(),
+    ).subscribe();
+  }
+
+  @override
+  void dispose() {
+    Supabase.instance.client.channel('home_page_messages').unsubscribe();
+    Supabase.instance.client.channel('home_page_conversations').unsubscribe();
+    Supabase.instance.client.channel('home_page_profiles').unsubscribe();
+    super.dispose();
   }
 
   void _fetchListings() {
@@ -103,7 +125,8 @@ class _HomePageState extends State<HomePage> {
        messages.sort((a, b) => (b['created_at'] as String).compareTo(a['created_at'] as String));
        final lastReadAtStr = membership['last_read_at'] as String?;
        final msgCreatedAtStr = messages.first['created_at'] as String?;
-       if (msgCreatedAtStr != null) {
+       final msgSenderId = messages.first['sender_id'] as String?;
+       if (msgCreatedAtStr != null && msgSenderId != Supabase.instance.client.auth.currentUser?.id) {
           final msgTime = DateTime.parse(msgCreatedAtStr);
           if (lastReadAtStr == null) {
              unreadCount++;
@@ -438,9 +461,12 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       const Icon(Icons.location_on, color: AppColors.primary, size: 14),
                       const SizedBox(width: 6),
-                      Text(
-                        location,
-                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B)),
+                      Flexible(
+                        child: Text(
+                          location,
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       const SizedBox(width: 6),
                       const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B), size: 14),

@@ -23,6 +23,7 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
   String _selectedFilter = 'All';
 
   List<Listing> _myListings = [];
+  List<Listing> _myHiddenListings = [];
   List<UrgentRequest> _myUrgentRequests = [];
   Map<String, int> _listingRequestCounts = {};
   Map<String, int> _urgentOfferCounts = {};
@@ -50,7 +51,15 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
           .from('listings')
           .select('*, item_requests!item_requests_listing_id_fkey(id)')
           .eq('owner_id', user.id)
-          .neq('status', 'HIDDEN')
+          .neq('status', 'UNAVAILABLE')
+          .order('created_at', ascending: false);
+
+      final hiddenListingsRes = await Supabase.instance.client
+          .from('listings')
+          .select('*, item_requests!item_requests_listing_id_fkey(id)')
+          .eq('owner_id', user.id)
+          .eq('status', 'UNAVAILABLE')
+          .eq('is_urgent_fulfillment', true)
           .order('created_at', ascending: false);
 
       final urgentRes = await Supabase.instance.client
@@ -62,9 +71,16 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
       if (mounted) {
         setState(() {
           _myListings = [];
+          _myHiddenListings = [];
           _listingRequestCounts = {};
+          
           for (var l in listingsRes) {
             _myListings.add(Listing.fromJson(l));
+            _listingRequestCounts[l['id']] = (l['item_requests'] as List?)?.length ?? 0;
+          }
+
+          for (var l in hiddenListingsRes) {
+            _myHiddenListings.add(Listing.fromJson(l));
             _listingRequestCounts[l['id']] = (l['item_requests'] as List?)?.length ?? 0;
           }
 
@@ -187,7 +203,7 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
   Widget _buildListingsTab() {
     return Column(
       children: [
-        const SizedBox(height: 140),
+        const SizedBox(height: 180),
         Container(
           height: 60,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -246,20 +262,25 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
   }
 
   Widget _buildUrgentTab() {
-    return _myUrgentRequests.isEmpty
+    final List<Widget> combinedItems = [
+      ..._myUrgentRequests.map((u) => _buildUrgentCard(u)),
+      ..._myHiddenListings.map((l) => _buildListingCard(l)),
+    ];
+
+    return combinedItems.isEmpty
         ? _buildEmptyState('No urgent requests found', Icons.bolt_rounded)
         : AnimationLimiter(
             child: ListView.builder(
-              padding: const EdgeInsets.only(left: 16, right: 16, top: 140, bottom: 100),
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 180, bottom: 100),
               physics: const BouncingScrollPhysics(),
-              itemCount: _myUrgentRequests.length,
+              itemCount: combinedItems.length,
               itemBuilder: (context, index) => AnimationConfiguration.staggeredList(
                 position: index,
                 duration: const Duration(milliseconds: 400),
                 child: SlideAnimation(
                   verticalOffset: 50.0,
                   child: FadeInAnimation(
-                    child: _buildUrgentCard(_myUrgentRequests[index]),
+                    child: combinedItems[index],
                   ),
                 ),
               ),
@@ -347,9 +368,31 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
                                 color: listing.status == 'ACTIVE' ? AppColors.primary : Colors.grey.shade600,
                                 fontSize: 10, fontWeight: FontWeight.w900
                               )),
-                            ),
-                          ],
-                        ),
+                              ),
+                              if (listing.categoryId == 'urgent_category') ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.2)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.bolt, size: 10, color: Color(0xFFEF4444)),
+                                      const SizedBox(width: 2),
+                                      const Text('URGENT HELP', style: TextStyle(
+                                        color: Color(0xFFEF4444),
+                                        fontSize: 9, fontWeight: FontWeight.w900,
+                                      )),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         const SizedBox(height: 8),
                         Text(listing.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.primaryDark, letterSpacing: -0.2), maxLines: 1, overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 8),
@@ -377,7 +420,7 @@ class _MyPostsPageState extends State<MyPostsPage> with SingleTickerProviderStat
   Widget _buildUrgentCard(UrgentRequest request) {
     final offerCount = _urgentOfferCounts[request.id] ?? 0;
     return GestureDetector(
-      onTap: () => context.push('/urgent_request/${request.id}').then((_) => _fetchRealData()),
+      onTap: () => context.push('/urgent_request_detail/${request.id}').then((_) => _fetchRealData()),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(

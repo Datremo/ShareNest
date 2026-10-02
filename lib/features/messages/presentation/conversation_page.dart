@@ -41,6 +41,7 @@ class _ConversationPageState extends State<ConversationPage> {
   bool _isOtherTyping = false;
   DateTime? _otherLastSeen;
   Timer? _typingTimer;
+  RealtimeChannel? _convChannel;
 
   @override
   void initState() {
@@ -48,6 +49,24 @@ class _ConversationPageState extends State<ConversationPage> {
     _chatRepo.markAsRead(widget.conversationId);
     _loadConversationContext();
     _initPresence();
+    _initConvSubscription();
+  }
+
+  void _initConvSubscription() {
+    _convChannel = Supabase.instance.client.channel('public:conversations:id=eq.${widget.conversationId}');
+    _convChannel!.onPostgresChanges(
+      event: PostgresChangeEvent.update,
+      schema: 'public',
+      table: 'conversations',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq, 
+        column: 'id', 
+        value: widget.conversationId,
+      ),
+      callback: (payload) {
+         _loadConversationContext();
+      }
+    ).subscribe();
   }
 
   void _initPresence() {
@@ -123,6 +142,7 @@ class _ConversationPageState extends State<ConversationPage> {
   void dispose() {
     _textController.dispose();
     _presenceChannel?.unsubscribe();
+    _convChannel?.unsubscribe();
     _typingTimer?.cancel();
     super.dispose();
   }
@@ -141,10 +161,25 @@ class _ConversationPageState extends State<ConversationPage> {
     if (text.isEmpty) return;
 
     _textController.clear();
-    await _chatRepo.sendMessage(
-      conversationId: widget.conversationId,
-      content: text,
-    );
+    
+    try {
+      await _chatRepo.sendMessage(
+        conversationId: widget.conversationId,
+        content: text,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      // Put text back so user doesn't lose it
+      _textController.text = text;
+    }
   }
 
   Future<void> _pickAndSendImage() async {
@@ -300,15 +335,42 @@ class _ConversationPageState extends State<ConversationPage> {
             icon: const Icon(Icons.more_vert, color: Colors.black87),
             onSelected: (value) async {
               if (value == 'report') {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User reported.')));
+                 final confirm = await showDialog<bool>(
+                   context: context,
+                   builder: (context) => AlertDialog(
+                     title: const Text('Report User'),
+                     content: const Text('Are you sure you want to report this user for inappropriate behavior?'),
+                     actions: [
+                       TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                       TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Report', style: TextStyle(color: Colors.red))),
+                     ],
+                   )
+                 );
+                 if (confirm == true && mounted) {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User has been reported to moderators.')));
+                 }
               } else if (value == 'block') {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User blocked.')));
+                 final confirm = await showDialog<bool>(
+                   context: context,
+                   builder: (context) => AlertDialog(
+                     title: const Text('Block User'),
+                     content: const Text('Are you sure you want to block this user? You will no longer receive messages from them.'),
+                     actions: [
+                       TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                       TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Block', style: TextStyle(color: Colors.red))),
+                     ],
+                   )
+                 );
+                 if (confirm == true && mounted) {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User blocked.')));
+                   context.pop(); // Leave conversation
+                 }
               } else if (value == 'cancel') {
                  await _cancelTransaction();
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'report', child: Text('Report')),
+              const PopupMenuItem(value: 'report', child: Text('Report User')),
               const PopupMenuItem(value: 'block', child: Text('Block User')),
               const PopupMenuItem(value: 'cancel', child: Text('Cancel Transaction', style: TextStyle(color: Colors.red))),
             ],
@@ -384,10 +446,20 @@ class _ConversationPageState extends State<ConversationPage> {
     }
     
     if (_convData!['listing'] != null) {
+       final mode = _convData!['listing']['mode'] ?? 'LEND';
+       final isUrgentFulfillment = _convData!['listing']['is_urgent_fulfillment'] == true;
+       
        title = _convData!['listing']['title'] ?? 'Listing';
        conditionOrDates = _convData!['listing']['condition'] ?? 'Good condition';
        location = _convData!['listing']['location_text'] ?? 'Nearby';
-       badgeText = 'LEND - ITEM';
+       
+       if (isUrgentFulfillment) {
+          badgeText = 'URGENT - $mode';
+          badgeColor = const Color(0xFFEF4444);
+       } else {
+          badgeText = '$mode - ITEM';
+       }
+       
        final photos = _convData!['listing']['photo_urls'] as List<dynamic>?;
        if (photos != null && photos.isNotEmpty) photoUrl = photos.first.toString();
        itemData = _convData!['listing'];
@@ -395,8 +467,15 @@ class _ConversationPageState extends State<ConversationPage> {
        final req = _convData!['item_request'] ?? _convData!['borrow_request'];
        title = req['listings']?['title'] ?? 'Requested Item';
        location = req['listings']?['location_text'] ?? 'Nearby';
-       badgeText = 'REQUEST - PENDING';
-       badgeColor = Colors.orange.shade700;
+       
+       final isUrgent = req['is_urgent'] == true;
+       if (isUrgent) {
+          badgeText = 'URGENT - REQUEST';
+          badgeColor = const Color(0xFFEF4444);
+       } else {
+          badgeText = 'REQUEST - PENDING';
+          badgeColor = Colors.orange.shade700;
+       }
        
        final photos = req['listings']?['photo_urls'] as List<dynamic>?;
        if (photos != null && photos.isNotEmpty) photoUrl = photos.first.toString();
@@ -405,6 +484,35 @@ class _ConversationPageState extends State<ConversationPage> {
        final startDate = req['start_date'];
        if (startDate != null) {
           conditionOrDates = 'Requested: ${DateTime.parse(startDate).month}/${DateTime.parse(startDate).day}';
+       }
+    } else if (_convData!['urgent_offer'] != null) {
+       final offer = _convData!['urgent_offer'];
+       final uReq = offer['urgent_requests'];
+       title = uReq?['title'] ?? 'Urgent Request';
+       location = uReq?['location_text'] ?? 'Nearby';
+       badgeText = 'URGENT - OFFER';
+       badgeColor = const Color(0xFFEF4444);
+       
+       final photos = uReq?['photo_urls'] as List<dynamic>?;
+       if (photos != null && photos.isNotEmpty) photoUrl = photos.first.toString();
+       
+       final neededBy = uReq?['needed_by'];
+       if (neededBy != null) {
+          conditionOrDates = 'Needed by: $neededBy';
+       }
+    } else if (_convData!['urgent_request'] != null) {
+       final uReq = _convData!['urgent_request'];
+       title = uReq['title'] ?? 'Urgent Request';
+       location = uReq['location_text'] ?? 'Nearby';
+       badgeText = 'URGENT - REQUEST';
+       badgeColor = const Color(0xFFEF4444);
+       
+       final photos = uReq['photo_urls'] as List<dynamic>?;
+       if (photos != null && photos.isNotEmpty) photoUrl = photos.first.toString();
+       
+       final neededBy = uReq['needed_by'];
+       if (neededBy != null) {
+          conditionOrDates = 'Needed by: $neededBy';
        }
     }
 
@@ -491,6 +599,11 @@ class _ConversationPageState extends State<ConversationPage> {
                if (itemData != null) {
                   final listing = Listing.fromJson(itemData!);
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => ItemDetailPage(listing: listing)));
+               } else if (_convData!['urgent_request'] != null || _convData!['urgent_offer'] != null) {
+                  final uReqId = _convData!['urgent_request']?['id'] ?? _convData!['urgent_offer']?['urgent_request_id'];
+                  if (uReqId != null) {
+                     context.push('/urgent_request_detail/$uReqId');
+                  }
                }
             },
             child: Row(
@@ -513,7 +626,25 @@ class _ConversationPageState extends State<ConversationPage> {
     }
 
     final isMe = message.senderId == _currentUserId;
+    final isDeleted = message.metadata?['is_deleted'] == true;
+    final isEdited = message.metadata?['is_edited'] == true;
     
+    // Check if message is read
+    bool isRead = false;
+    if (isMe && _convData != null && _convData!['all_members'] != null) {
+      final allMembers = _convData!['all_members'] as List<dynamic>;
+      final otherMembers = allMembers.where((m) => m['profile_id'] != _currentUserId).toList();
+      if (otherMembers.isNotEmpty) {
+        final lastReadAtStr = otherMembers.first['last_read_at'] as String?;
+        if (lastReadAtStr != null && message.createdAt != null) {
+          final lastReadTime = DateTime.parse(lastReadAtStr);
+          if (lastReadTime.isAfter(message.createdAt!) || lastReadTime.isAtSameMomentAs(message.createdAt!)) {
+             isRead = true;
+          }
+        }
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
@@ -521,61 +652,142 @@ class _ConversationPageState extends State<ConversationPage> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMe ? const Color(0xFFDDF5ED) : Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isMe ? 16 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 16),
+            child: GestureDetector(
+              onTap: isMe && !isDeleted ? () => _showMessageOptions(message) : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDeleted ? Colors.grey.shade200 : (isMe ? const Color(0xFFDDF5ED) : Colors.white),
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(16),
+                    topRight: const Radius.circular(16),
+                    bottomLeft: Radius.circular(isMe ? 16 : 4),
+                    bottomRight: Radius.circular(isMe ? 4 : 16),
+                  ),
+                  border: (isMe || isDeleted) ? null : Border.all(color: Colors.grey.shade200),
                 ),
-                border: isMe ? null : Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                children: [
-                  if (message.messageType == 'IMAGE' && message.metadata?['image_url'] != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          message.metadata!['image_url'],
-                          width: 200,
-                          fit: BoxFit.cover,
+                child: Column(
+                  crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    if (isDeleted)
+                      const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.block, size: 14, color: Colors.grey),
+                          SizedBox(width: 6),
+                          Text('This message was deleted', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                        ],
+                      )
+                    else ...[
+                      if (message.messageType == 'IMAGE' && message.metadata?['image_url'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              message.metadata!['image_url'],
+                              width: 200,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  if (message.content.isNotEmpty && message.content != 'Sent an image')
-                    Text(
-                      message.content,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isMe ? const Color(0xFF0F3A32) : Colors.black87,
-                      ),
-                    ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _formatTime(message.createdAt?.toLocal()),
-                        style: TextStyle(fontSize: 10, color: isMe ? const Color(0xFF1D5A50).withOpacity(0.7) : Colors.grey),
-                      ),
-                      if (isMe) ...[
-                        const SizedBox(width: 4),
-                        const Icon(Icons.done_all, size: 12, color: Color(0xFF1D5A50)),
-                      ]
+                      if (message.content.isNotEmpty && message.content != 'Sent an image')
+                        Text(
+                          message.content,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isMe ? const Color(0xFF0F3A32) : Colors.black87,
+                          ),
+                        ),
                     ],
-                  )
-                ],
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _formatTime(message.createdAt?.toLocal()),
+                          style: TextStyle(fontSize: 10, color: isDeleted ? Colors.grey : (isMe ? const Color(0xFF1D5A50).withOpacity(0.7) : Colors.grey)),
+                        ),
+                        if (isEdited && !isDeleted) ...[
+                          const SizedBox(width: 4),
+                          Text('(edited)', style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: isMe ? const Color(0xFF1D5A50).withOpacity(0.7) : Colors.grey)),
+                        ],
+                        if (isMe && !isDeleted) ...[
+                          const SizedBox(width: 4),
+                          Icon(isRead ? Icons.done_all : Icons.check, size: 12, color: isRead ? Colors.blue : const Color(0xFF1D5A50)),
+                        ]
+                      ],
+                    )
+                  ],
+                ),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showMessageOptions(Message message) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.black87),
+                title: const Text('Edit message'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editMessageDialog(message);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Delete message', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _chatRepo.deleteMessage(message.id, currentMetadata: message.metadata);
+                },
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
+  void _editMessageDialog(Message message) {
+    final controller = TextEditingController(text: message.content);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Message'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () async {
+                if (controller.text.trim().isNotEmpty && controller.text.trim() != message.content) {
+                  await _chatRepo.editMessage(message.id, controller.text.trim(), currentMetadata: message.metadata);
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            )
+          ],
+        );
+      }
     );
   }
 

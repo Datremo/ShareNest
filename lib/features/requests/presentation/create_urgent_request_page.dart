@@ -113,6 +113,26 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
             .getPublicUrl(fileName);
       }
 
+      DateTime expiresAt;
+      final now = DateTime.now();
+      if (_neededBy == 'Right now') {
+        expiresAt = now.add(const Duration(minutes: 30));
+      } else if (_neededBy == 'Within 1 hour') {
+        expiresAt = now.add(const Duration(hours: 1));
+      } else if (_neededBy == 'Today') {
+        expiresAt = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        if (expiresAt.difference(now).inHours < 1) expiresAt = now.add(const Duration(hours: 2));
+      } else if (_neededBy == 'By a specific time' && _specificTime != null) {
+        expiresAt = DateTime(now.year, now.month, now.day, _specificTime!.hour, _specificTime!.minute);
+        if (expiresAt.isBefore(now)) expiresAt = expiresAt.add(const Duration(days: 1));
+      } else {
+        expiresAt = now.add(const Duration(hours: 24));
+      }
+
+      if (_selectedLat == null || _selectedLng == null) {
+        throw Exception('Location is required. Please select a valid location.');
+      }
+
       // Add to DB
       await Supabase.instance.client.from('urgent_requests').insert({
         'requester_id': user.id,
@@ -124,11 +144,10 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
           : (_neededBy ?? 'Right now'),
         'duration': _duration == 'Custom' ? _customDurationController.text : (_duration ?? '30 min'),
         'radius_km': _radiusKm,
-        'lat': _selectedLat ?? 18.98,
-        'lng': _selectedLng ?? 73.11,
+        'lat': _selectedLat,
+        'lng': _selectedLng,
         'status': 'ACTIVE',
-        // Example: Expire in 24 hours for safety, or based on 'neededBy'
-        'expires_at': DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
+        'expires_at': expiresAt.toUtc().toIso8601String(),
       });
 
       // Wait a bit for the cool pulse animation to be seen
@@ -157,70 +176,84 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F7FA),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back, color: AppColors.textPrimary),
-          onPressed: _prevStep,
-        ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
+      backgroundColor: Colors.transparent, // transparent to see AnimatedLiquidBackground if placed above Scaffold, or if Scaffold is inside
+      body: AnimatedLiquidBackground(
+        child: Column(
           children: [
-            const Icon(Icons.bolt_rounded, color: Color(0xFFE53935), size: 24),
-            const SizedBox(width: 8),
-            Text(
-              'Need It Now',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: const Color(0xFFE53935)),
+            // Custom AppBar
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.back, color: AppColors.textPrimary),
+                      onPressed: _prevStep,
+                    ),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.bolt_rounded, color: Color(0xFFE53935), size: 24),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Need It Now',
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: const Color(0xFFE53935), fontSize: 18),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 16.0),
+                      child: Text(
+                        '${_currentStep + 1} / $_totalSteps',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Body Content
+            Expanded(
+              child: Stack(
+                children: [
+                  PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    onPageChanged: (idx) => setState(() => _currentStep = idx),
+                    children: [
+                      _buildStep1What(),
+                      _buildStep2When(),
+                      _buildStep3Duration(),
+                      _buildStep4Radius(),
+                      _buildStep5Review(),
+                    ],
+                  ),
+                  
+                  if (_currentStep < 4)
+                    Positioned(
+                      bottom: 40,
+                      left: 20,
+                      right: 20,
+                      child: ElevatedButton(
+                        onPressed: _nextStep,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE53935),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          elevation: 8,
+                          shadowColor: const Color(0xFFE53935).withValues(alpha: 0.5),
+                        ),
+                        child: Text('Next', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
-        centerTitle: true,
-        actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Text(
-                '${_currentStep + 1} / $_totalSteps',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.grey[500]),
-              ),
-            ),
-          )
-        ],
-      ),
-      body: Stack(
-        children: [
-          PageView(
-            controller: _pageController,
-            physics: const NeverScrollableScrollPhysics(),
-            onPageChanged: (idx) => setState(() => _currentStep = idx),
-            children: [
-              _buildStep1What(),
-              _buildStep2When(),
-              _buildStep3Duration(),
-              _buildStep4Radius(),
-              _buildStep5Review(),
-            ],
-          ),
-          
-          if (_currentStep < 4)
-            Positioned(
-              bottom: 40,
-              left: 20,
-              right: 20,
-              child: ElevatedButton(
-                onPressed: _nextStep,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE53935),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 4,
-                ),
-                child: Text('Next', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -233,20 +266,23 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
         children: [
           Text('What do you need?', style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
           const SizedBox(height: 24),
-          TextField(
-            controller: _titleController,
-            style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w500),
-            decoration: InputDecoration(
-              hintText: 'e.g. USB-C charger',
-              hintStyle: TextStyle(color: Colors.grey[400]),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.all(20),
+          GlassCard(
+            padding: const EdgeInsets.all(0),
+            child: TextField(
+              controller: _titleController,
+              style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w500),
+              decoration: InputDecoration(
+                hintText: 'e.g. USB-C charger',
+                hintStyle: TextStyle(color: Colors.grey[600]),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.3),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.all(20),
+              ),
             ),
           ),
           const SizedBox(height: 24),
-          Text('Add a photo so neighbours know exactly what you mean.', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14)),
+          Text('Add a photo so neighbours know exactly what you mean.', style: GoogleFonts.inter(color: Colors.grey[700], fontSize: 14)),
           const SizedBox(height: 12),
           GestureDetector(
             onTap: () async {
@@ -255,44 +291,50 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
                 setState(() => _selectedImage = image);
               }
             },
-            child: Container(
-              height: 100,
-              width: 100,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[300]!, width: 2, style: BorderStyle.solid),
-                image: _selectedImage != null
-                  ? DecorationImage(
-                      image: kIsWeb 
-                        ? NetworkImage(_selectedImage!.path) 
-                        : FileImage(File(_selectedImage!.path)) as ImageProvider,
-                      fit: BoxFit.cover,
-                    )
-                  : null,
+            child: GlassCard(
+              padding: const EdgeInsets.all(0),
+              child: Container(
+                height: 120,
+                width: 120,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
+                  image: _selectedImage != null
+                    ? DecorationImage(
+                        image: kIsWeb 
+                          ? NetworkImage(_selectedImage!.path) 
+                          : FileImage(File(_selectedImage!.path)) as ImageProvider,
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+                ),
+                child: _selectedImage == null ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.camera_alt_outlined, color: Colors.grey[700], size: 32),
+                    const SizedBox(height: 4),
+                    Text('Add photo', style: GoogleFonts.inter(color: Colors.grey[700], fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ) : null,
               ),
-              child: _selectedImage == null ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.camera_alt_outlined, color: Colors.grey[400], size: 32),
-                  const SizedBox(height: 4),
-                  Text('Add photo', style: GoogleFonts.inter(color: Colors.grey[400], fontSize: 12)),
-                ],
-              ) : null,
             ),
           ),
           const SizedBox(height: 24),
-          TextField(
-            controller: _descController,
-            maxLines: 3,
-            style: GoogleFonts.inter(fontSize: 16),
-            decoration: InputDecoration(
-              hintText: 'Describe what you need (Optional)',
-              hintStyle: TextStyle(color: Colors.grey[400]),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.all(20),
+          GlassCard(
+            padding: const EdgeInsets.all(0),
+            child: TextField(
+              controller: _descController,
+              maxLines: 3,
+              style: GoogleFonts.inter(fontSize: 16),
+              decoration: InputDecoration(
+                hintText: 'Describe what you need (Optional)',
+                hintStyle: TextStyle(color: Colors.grey[600]),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.3),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.all(20),
+              ),
             ),
           ),
         ],
@@ -309,7 +351,7 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
         children: [
           Text('When do you need it?', style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
           const SizedBox(height: 8),
-          Text('Helps neighbours know if they can get it to you in time.', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14)),
+          Text('Helps neighbours know if they can get it to you in time.', style: GoogleFonts.inter(color: Colors.grey[700], fontSize: 14)),
           const SizedBox(height: 32),
           ...options.map((opt) => Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
@@ -323,30 +365,30 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
                       _specificTime = time;
                     });
                   } else {
-                    // reset if they cancel
                     setState(() => _neededBy = null);
                   }
                 }
               },
-              child: Container(
-                width: double.infinity,
+              child: GlassCard(
                 padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: _neededBy == opt ? const Color(0xFFFFE5E5) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _neededBy == opt ? const Color(0xFFE53935) : Colors.transparent, width: 2),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      opt == 'By a specific time' && _neededBy == opt && _specificTime != null 
-                        ? 'By ${_specificTime!.format(context)}' 
-                        : opt, 
-                      style: GoogleFonts.inter(fontSize: 18, fontWeight: _neededBy == opt ? FontWeight.bold : FontWeight.w500, color: _neededBy == opt ? const Color(0xFFE53935) : AppColors.textPrimary)
-                    ),
-                    if (_neededBy == opt) const Icon(Icons.check_circle, color: Color(0xFFE53935)),
-                  ],
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: _neededBy == opt ? const Color(0xFFE53935).withValues(alpha: 0.1) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        opt == 'By a specific time' && _neededBy == opt && _specificTime != null 
+                          ? 'By ${_specificTime!.format(context)}' 
+                          : opt, 
+                        style: GoogleFonts.inter(fontSize: 18, fontWeight: _neededBy == opt ? FontWeight.bold : FontWeight.w500, color: _neededBy == opt ? const Color(0xFFE53935) : AppColors.textPrimary)
+                      ),
+                      if (_neededBy == opt) const Icon(Icons.check_circle, color: Color(0xFFE53935)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -373,7 +415,8 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                 decoration: BoxDecoration(
-                  color: _duration == opt ? const Color(0xFFE53935) : Colors.white,
+                  color: _duration == opt ? const Color(0xFFE53935) : Colors.white.withValues(alpha: 0.5),
+                  border: Border.all(color: Colors.white, width: 1.5),
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     if (_duration == opt) BoxShadow(color: const Color(0xFFE53935).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4)),
@@ -386,16 +429,19 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
           
           if (_duration == 'Custom') ...[
             const SizedBox(height: 24),
-            TextField(
-              controller: _customDurationController,
-              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w500),
-              decoration: InputDecoration(
-                hintText: 'e.g. 3 hours, 2 days',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.all(20),
+            GlassCard(
+              padding: const EdgeInsets.all(0),
+              child: TextField(
+                controller: _customDurationController,
+                style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  hintText: 'e.g. 3 hours, 2 days',
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.3),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.all(20),
+                ),
               ),
             ),
           ],
@@ -412,24 +458,28 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
         children: [
           Text('Search nearby', style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
           const SizedBox(height: 8),
-          Text('Where do you need it? And how far should we search?', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14)),
+          Text('Where do you need it? And how far should we search?', style: GoogleFonts.inter(color: Colors.grey[700], fontSize: 14)),
           const SizedBox(height: 24),
-          LocationAutocompleteField(
-            controller: _locationController,
-            validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-            decoration: InputDecoration(
-              hintText: 'Enter your location',
-              prefixIcon: const Icon(Icons.location_on_outlined),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          GlassCard(
+            padding: const EdgeInsets.all(0),
+            child: LocationAutocompleteField(
+              controller: _locationController,
+              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              decoration: InputDecoration(
+                hintText: 'Enter your location (Required) *',
+                hintStyle: TextStyle(color: Colors.red[300]),
+                prefixIcon: const Icon(Icons.location_on_outlined),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.3),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none),
+              ),
+              onSelected: (suggestion) {
+                setState(() {
+                  _selectedLat = suggestion.lat;
+                  _selectedLng = suggestion.lon;
+                });
+              },
             ),
-            onSelected: (suggestion) {
-              setState(() {
-                _selectedLat = suggestion.lat;
-                _selectedLng = suggestion.lon;
-              });
-            },
           ),
           const SizedBox(height: 32),
           
@@ -483,46 +533,45 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text('Final review', style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5))],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Expanded(
+            child: SingleChildScrollView(
+              child: GlassCard(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.bolt_rounded, color: Color(0xFFE53935), size: 28),
-                    const SizedBox(width: 8),
-                    Text('Need It Now', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFFE53935))),
+                    Row(
+                      children: [
+                        const Icon(Icons.bolt_rounded, color: Color(0xFFE53935), size: 28),
+                        const SizedBox(width: 8),
+                        Text('Need It Now', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFFE53935))),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(_titleController.text.isEmpty ? 'Untitled Item' : _titleController.text, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 24),
+                    _buildReviewRow(Icons.access_time_filled, 'Need by', _neededBy == 'By a specific time' && _specificTime != null 
+                        ? 'By ${_specificTime!.format(context)}' 
+                        : (_neededBy ?? 'Right now')),
+                    const SizedBox(height: 16),
+                    _buildReviewRow(Icons.timer, 'Borrow for', _duration == 'Custom' ? _customDurationController.text : (_duration ?? '30 min')),
+                    const SizedBox(height: 16),
+                    _buildReviewRow(Icons.location_on, 'Location', _locationController.text.isNotEmpty ? _locationController.text : 'Current Location'),
+                    const SizedBox(height: 16),
+                    _buildReviewRow(Icons.radar, 'Looking within', '${_radiusKm} km'),
+                    if (_descController.text.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _buildReviewRow(Icons.notes, 'Note', '"${_descController.text}"'),
+                    ]
                   ],
                 ),
-                const SizedBox(height: 16),
-                Text(_titleController.text.isEmpty ? 'Untitled Item' : _titleController.text, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 24),
-                _buildReviewRow(Icons.access_time_filled, 'Need by', _neededBy == 'By a specific time' && _specificTime != null 
-                    ? 'By ${_specificTime!.format(context)}' 
-                    : (_neededBy ?? 'Right now')),
-                const SizedBox(height: 16),
-                _buildReviewRow(Icons.timer, 'Borrow for', _duration == 'Custom' ? _customDurationController.text : (_duration ?? '30 min')),
-                const SizedBox(height: 16),
-                _buildReviewRow(Icons.location_on, 'Location', _locationController.text.isNotEmpty ? _locationController.text : 'Current Location'),
-                const SizedBox(height: 16),
-                _buildReviewRow(Icons.radar, 'Looking within', '${_radiusKm} km'),
-                if (_descController.text.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _buildReviewRow(Icons.notes, 'Note', '"${_descController.text}"'),
-                ]
-              ],
+              ),
             ),
           ),
           
-          const Spacer(),
+          const SizedBox(height: 16),
           
           if (_isSubmitting)
             AnimatedBuilder(
@@ -531,14 +580,14 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
                 return Transform.scale(
                   scale: _pulseAnimation.value,
                   child: Container(
-                    width: 100, height: 100,
+                    width: 80, height: 80,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: const Color(0xFFE53935).withValues(alpha: 0.2),
                     ),
                     child: Center(
                       child: Container(
-                        width: 50, height: 50,
+                        width: 40, height: 40,
                         decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFE53935)),
                         child: const Icon(Icons.wifi_tethering, color: Colors.white),
                       ),
@@ -568,7 +617,7 @@ class _CreateUrgentRequestPageState extends State<CreateUrgentRequestPage> with 
                 ),
               ),
             ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
         ],
       ),
     );

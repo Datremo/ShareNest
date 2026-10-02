@@ -25,6 +25,7 @@ import '../../features/requests/presentation/my_sos_signals_page.dart';
 import '../../features/explore/presentation/explore_page.dart';
 import '../../features/activity/presentation/activity_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
+import '../../features/profile/presentation/app_guide_page.dart';
 import '../../features/profile/presentation/settings_page.dart';
 import '../../features/profile/presentation/tracking_dashboard_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
@@ -42,6 +43,8 @@ import '../../features/share/presentation/create_lend_post_page.dart';
 import '../../features/share/presentation/create_give_post_page.dart';
 import '../../features/share/presentation/create_exchange_post_page.dart';
 import '../../features/share/presentation/edit_lend_post_page.dart';
+import '../../features/share/presentation/edit_give_post_page.dart';
+import '../../features/share/presentation/edit_exchange_post_page.dart';
 import '../../features/explore/presentation/borrow_hub_page.dart';
 import '../../features/explore/presentation/borrow_results_page.dart';
 import '../../features/requests/presentation/request_free_item_page.dart';
@@ -222,6 +225,13 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/guide',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        return const AppGuidePage();
+      },
+    ),
+    GoRoute(
       path: '/settings',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
@@ -365,9 +375,17 @@ final GoRouter appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       pageBuilder: (context, state) {
         final listing = state.extra as Listing;
+        Widget child;
+        if (listing.mode == 'GIVE') {
+          child = EditGivePostPage(listing: listing);
+        } else if (listing.mode == 'EXCHANGE') {
+          child = EditExchangePostPage(listing: listing);
+        } else {
+          child = EditLendPostPage(listing: listing);
+        }
         return SpringBottomUpTransitionPage(
           key: state.pageKey,
-          child: EditLendPostPage(listing: listing),
+          child: child,
         );
       },
     ),

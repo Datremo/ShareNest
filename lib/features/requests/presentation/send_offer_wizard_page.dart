@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -444,6 +445,66 @@ class _SendOfferWizardPageState extends State<SendOfferWizardPage> {
     );
   }
 
+  Widget _buildGlassCard({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 24,
+                spreadRadius: -5,
+                offset: const Offset(0, 10),
+              )
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataRow(String label, String value, {bool isHighlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: isHighlight ? const Color(0xFF00C853) : Colors.black87,
+                fontSize: 15,
+                fontWeight: isHighlight ? FontWeight.w800 : FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStep3Review() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -453,66 +514,62 @@ class _SendOfferWizardPageState extends State<SendOfferWizardPage> {
           Text('Review Offer', style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 24),
           
-          Text('Request Details', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54)),
+          Text('Request Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54)),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          
+          _buildGlassCard(
+            child: Row(
               children: [
-                Text(widget.request.title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18)),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Colors.black54),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text('~450m away', style: GoogleFonts.inter(color: Colors.black54, fontSize: 14))),
-                  ],
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: widget.request.imageUrl != null
+                      ? Image.network(widget.request.imageUrl!, width: 80, height: 80, fit: BoxFit.cover)
+                      : Container(width: 80, height: 80, color: Colors.grey[200], child: const Icon(Icons.image, color: Colors.grey)),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.access_time, size: 16, color: Colors.black54),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text('Needed by: ${widget.request.neededBy ?? 'Anytime'}', style: GoogleFonts.inter(color: Colors.black54, fontSize: 14))),
-                  ],
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE53935).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text('URGENT', style: TextStyle(color: const Color(0xFFE53935), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(widget.request.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black87)),
+                      const SizedBox(height: 4),
+                      Text('Needed by: ${widget.request.neededBy ?? 'Anytime'}', style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                    ],
+                  ),
                 ),
-                if (widget.request.description != null && widget.request.description!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text('"${widget.request.description!}"', style: GoogleFonts.inter(color: Colors.black87, fontStyle: FontStyle.italic, fontSize: 14)),
-                ]
               ],
             ),
           ),
           
           const SizedBox(height: 24),
-          Text('Your Offer', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54)),
+          Text('Your Offer Details', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54)),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+          
+          _buildGlassCard(
             child: Column(
               children: [
-                _buildSummaryRow('Offer type', widget.offerType),
+                _buildDataRow('Offer Type', widget.offerType, isHighlight: true),
                 const Divider(),
-                _buildSummaryRow('Condition', _itemCondition ?? ''),
-                if (_extraDetailsController.text.isNotEmpty) ...[
-                  const Divider(),
-                  _buildSummaryRow('Extra details', _extraDetailsController.text),
-                ],
+                _buildDataRow('Condition', _itemCondition ?? 'N/A'),
                 const Divider(),
-                _buildSummaryRow('Location', _selectedLocation?.displayName ?? _locationController.text),
+                _buildDataRow('Location', _selectedLocation?.displayName ?? _locationController.text),
                 if (widget.offerType == 'Lend' && _lendDuration != null) ...[
                   const Divider(),
-                  _buildSummaryRow('Duration', _lendDuration!),
+                  _buildDataRow('Duration', _lendDuration!),
                 ],
                 const Divider(),
-                _buildSummaryRow('Available', _availabilityDate ?? ''),
+                _buildDataRow('Available', _availabilityDate ?? 'N/A'),
                 const Divider(),
-                _buildSummaryRow('Method', _handoverMethod ?? ''),
+                _buildDataRow('Method', _handoverMethod ?? 'N/A'),
               ],
             ),
           ),
@@ -523,7 +580,10 @@ class _SendOfferWizardPageState extends State<SendOfferWizardPage> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: _isSubmitting ? null : _prevPage,
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16), 
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
                   child: Text('Back', style: GoogleFonts.inter(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
@@ -531,7 +591,12 @@ class _SendOfferWizardPageState extends State<SendOfferWizardPage> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submitOffer,
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00C853), 
+                    padding: const EdgeInsets.symmetric(vertical: 16), 
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
                   child: _isSubmitting 
                     ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : Text('Send Offer', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),

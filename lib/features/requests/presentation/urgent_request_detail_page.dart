@@ -8,6 +8,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/data/models/urgent_request.dart';
 import '../../../core/presentation/widgets/liquid_glass_widgets.dart';
 import 'package:geolocator/geolocator.dart' as geo;
+import '../../../core/data/repositories/chat_repository.dart';
+import '../../messages/presentation/conversation_page.dart';
 
 class UrgentRequestDetailPage extends StatefulWidget {
   final String requestId;
@@ -197,41 +199,19 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
       final currentUser = supabase.auth.currentUser;
       if (currentUser == null) return;
 
-      String finalListingId = offeredListingId ?? '';
-      if (finalListingId.isEmpty) {
-        throw Exception("This offer is invalid or missing a listing_id. Please ask the helper to send a new offer.");
-      }
-
-      // Start the transaction (item_request)
-      await supabase.from('item_requests').insert({
-        'listing_id': finalListingId,
-        'requester_id': currentUser.id,
-        'status': 'ACCEPTED',
-        'is_urgent': true,
-      });
-
-      // Update the offer and request status
-      await supabase.from('urgent_request_offers').update({'status': 'ACCEPTED'}).eq('id', offerId);
-      await supabase.from('urgent_requests').update({'status': 'COMPLETED'}).eq('id', widget.requestId);
-      await supabase.from('urgent_request_offers').update({'status': 'DECLINED'}).eq('urgent_request_id', widget.requestId).neq('id', offerId);
-
-      // Notify the helper (wrapped in try-catch because notifications RLS might fail)
-      try {
-        await supabase.from('notifications').insert({
-          'user_id': helperId,
-          'actor_id': currentUser.id,
-          'type': 'request_received', // Treated as an incoming request that is already accepted
-          'title': 'Offer Accepted!',
-          'message': 'Your offer to help was accepted. Waiting for handoff pin generation.',
-          'entity_id': widget.requestId,
-        });
-      } catch (e) {
-        debugPrint('Warning: Failed to create notification (likely RLS policy issue): $e');
-      }
+      // CALL THE BACKEND RPC THAT HANDLES EVERYTHING ROBUSTLY
+      final response = await supabase.rpc(
+        'accept_urgent_offer',
+        params: {'p_offer_id': offerId},
+      );
+      
+      final String newItemReqId = response as String;
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer accepted! Check your activity/dashboard.')));
-        context.pop(); 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Offer accepted! Check your chat / dashboard.')),
+        );
+        context.pop();
       }
     } catch (e) {
       debugPrint('Error accepting offer: $e');
@@ -361,6 +341,48 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
                           Text(offerType == 'GIVE' ? 'Wants to Give' : 'Wants to Lend', style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 14)),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chat_bubble_outline, color: AppColors.primary),
+                      onPressed: () async {
+                        try {
+                          final currentUser = Supabase.instance.client.auth.currentUser;
+                          if (currentUser == null) return;
+                          
+                          final isRequester = currentUser.id == _request?.requesterId;
+                          final otherUserId = isRequester ? offer['helper_id'] : _request!.requesterId;
+                          
+                          String? otherUserName;
+                          if (isRequester) {
+                            otherUserName = helper != null ? helper['display_name'] : null;
+                          } else {
+                            otherUserName = _requesterProfile != null ? _requesterProfile!['display_name'] : null;
+                          }
+
+                          final chatRepo = ChatRepository();
+                          final convId = await chatRepo.createOrGetConversation(
+                            contextType: 'urgent_offer',
+                            contextId: offer['id'],
+                            otherUserId: otherUserId,
+                          );
+                          
+                          if (context.mounted) {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => ConversationPage(
+                                  conversationId: convId ?? '',
+                                  otherUserName: otherUserName ?? 'Neighbor',
+                                  contextLabel: 'Context: Urgent Request - ${_request?.title}',
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error starting chat: $e')));
+                          }
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -724,59 +746,59 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
                       ),
                     ),
                     
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: (_isOffering || 
-                                    (selectedType == 'listing' && selectedListingId == null) ||
-                                    (selectedType == 'give' && startDate == null) ||
-                                    (selectedType == 'lend' && (startDate == null || endDate == null)))
-                            ? null
-                            : () {
-                                if (selectedType == 'listing') {
-                                  final mode = (myListings.firstWhere((l) => l['id'] == selectedListingId)['type'] == 'GIVE' ? 'give' : 'lend');
-                                  _offerHelp(
-                                    mode, 
-                                    'forever', 
-                                    listingId: selectedListingId,
-                                    extraDetails: detailsController.text,
-                                    handoverLocation: locationController.text,
-                                    handoverMethod: methodController.text,
-                                  );
-                                } else {
-                                  _offerHelp(
-                                    selectedType, 
-                                    'from ${startDate.toString()} to ${endDate?.toString() ?? "forever"}', 
-                                    windowStart: startDate!.toIso8601String(), 
-                                    windowEnd: endDate?.toIso8601String(),
-                                    extraDetails: detailsController.text,
-                                    handoverLocation: locationController.text,
-                                    handoverMethod: methodController.text,
-                                  );
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E293B),
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          elevation: 0,
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: (_isOffering || 
+                                        (selectedType == 'listing' && selectedListingId == null) ||
+                                        (selectedType == 'give' && startDate == null) ||
+                                        (selectedType == 'lend' && (startDate == null || endDate == null)))
+                                ? null
+                                : () {
+                                    if (selectedType == 'listing') {
+                                      final mode = (myListings.firstWhere((l) => l['id'] == selectedListingId)['type'] == 'GIVE' ? 'give' : 'lend');
+                                      _offerHelp(
+                                        mode, 
+                                        'forever', 
+                                        listingId: selectedListingId,
+                                        extraDetails: detailsController.text,
+                                        handoverLocation: locationController.text,
+                                        handoverMethod: methodController.text,
+                                      );
+                                    } else {
+                                      _offerHelp(
+                                        selectedType, 
+                                        'from ${startDate.toString()} to ${endDate?.toString() ?? "forever"}', 
+                                        windowStart: startDate!.toIso8601String(), 
+                                        windowEnd: endDate?.toIso8601String(),
+                                        extraDetails: detailsController.text,
+                                        handoverLocation: locationController.text,
+                                        handoverMethod: methodController.text,
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E293B),
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              elevation: 0,
+                            ),
+                            child: _isOffering
+                              ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                              : Text('Send Offer', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
+                          ),
                         ),
-                        child: _isOffering
-                          ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                          : Text('Send Offer', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
-                      ),
+                      ],
                     ),
-                  ],
                   ),
                 ),
-              ),
-            );
-          }
-        );
-      }
-    );
-  }
+              );
+            }
+          );
+        }
+      );
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -800,14 +822,14 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 280,
+            expandedHeight: 320,
             pinned: true,
             backgroundColor: const Color(0xFF1E293B),
             elevation: 0,
             leading: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha:0.3), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha:0.4), shape: BoxShape.circle),
                 child: const Icon(CupertinoIcons.back, color: Colors.white, size: 20),
               ),
               onPressed: () => context.pop(),
@@ -817,12 +839,22 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
                 IconButton(
                   icon: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.black.withValues(alpha:0.3), shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha:0.4), shape: BoxShape.circle),
                     child: const Icon(CupertinoIcons.trash, color: Colors.redAccent, size: 20),
                   ),
                   onPressed: _confirmDeleteRequest,
                 ),
             ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(32),
+              child: Container(
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                ),
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -848,9 +880,11 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withValues(alpha: 0.2),
-                          Colors.black.withValues(alpha: 0.8),
+                          Colors.black.withValues(alpha: 0.3),
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.7),
                         ],
+                        stops: const [0.0, 0.5, 1.0],
                       ),
                     ),
                   ),
@@ -858,9 +892,10 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
                   // Content
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 48), // Bottom padding to stay above the rounded corners
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Row(
                             children: [
@@ -910,32 +945,40 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
           
           SliverToBoxAdapter(
             child: Container(
-              transform: Matrix4.translationValues(0, -30, 0),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-              ),
+              color: Colors.white,
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Title and Description
-                    Text(req.title, style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B), height: 1.1)),
+                    Text(req.title, style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: const Color(0xFF0F172A), height: 1.2, letterSpacing: -0.5)),
                     if (req.description != null && req.description!.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      Text(req.description!, style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[700], height: 1.5)),
+                      Text(req.description!, style: GoogleFonts.inter(fontSize: 15, color: Colors.grey[700], height: 1.5)),
                     ],
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     
                     // Requester Info
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-                          backgroundColor: Colors.grey[200],
-                          child: avatar == null ? Text(name[0], style: const TextStyle(color: Colors.grey, fontSize: 24)) : null,
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFEF4444), Color(0xFFF59E0B)],
+                            ),
+                            boxShadow: [
+                              BoxShadow(color: const Color(0xFFEF4444).withValues(alpha:0.2), blurRadius: 8, offset: const Offset(0, 2))
+                            ]
+                          ),
+                          child: CircleAvatar(
+                            radius: 26,
+                            backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                            backgroundColor: Colors.white,
+                            child: avatar == null ? Text(name[0], style: GoogleFonts.outfit(color: const Color(0xFF1E293B), fontSize: 24, fontWeight: FontWeight.bold)) : null,
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -948,11 +991,57 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
                             ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(color: Color(0xFFF1F5F9), shape: BoxShape.circle),
-                          child: const Icon(Icons.message_rounded, color: Color(0xFF64748B), size: 20),
-                        ),
+                        if (!isRequester)
+                          GestureDetector(
+                            onTap: () async {
+                              if (!hasOffered) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Please send an offer first to start chatting!')),
+                                );
+                                return;
+                              }
+                              
+                              try {
+                                final chatRepo = ChatRepository();
+                                final convId = await chatRepo.createOrGetConversation(
+                                  contextType: 'urgent_offer',
+                                  contextId: myOffer['id'],
+                                  otherUserId: _request!.requesterId,
+                                );
+                                
+                                if (context.mounted) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => ConversationPage(
+                                        conversationId: convId ?? '',
+                                        otherUserName: name,
+                                        contextLabel: 'Context: Urgent Request - ${req.title}',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error starting chat: $e')));
+                                }
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: hasOffered ? const Color(0xFFE0E7FF) : const Color(0xFFF1F5F9), 
+                                shape: BoxShape.circle,
+                                boxShadow: hasOffered ? [
+                                  BoxShadow(color: const Color(0xFF4338CA).withValues(alpha:0.2), blurRadius: 8, offset: const Offset(0, 2))
+                                ] : []
+                              ),
+                              child: Icon(
+                                Icons.chat_bubble_rounded, 
+                                color: hasOffered ? const Color(0xFF4338CA) : const Color(0xFF64748B), 
+                                size: 22
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     
@@ -1130,33 +1219,45 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
         ],
       ),
       bottomSheet: (!isRequester && req.status == 'ACTIVE') ? Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius: 20, offset: const Offset(0, -5))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.08), blurRadius: 24, offset: const Offset(0, -8))],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
         child: SafeArea(
           child: hasOffered 
           ? Container(
-              padding: const EdgeInsets.symmetric(vertical: 20),
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
               decoration: BoxDecoration(
                 color: const Color(0xFFF0FDF4),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF86EFAC)),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFF86EFAC), width: 1.5),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.check_circle_outline, color: Color(0xFF16A34A)),
-                  const SizedBox(width: 12),
-                  Text('Offer Sent! Waiting for response', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: const Color(0xFF16A34A))),
-                  if (myOffer.isNotEmpty && myOffer['status'] == 'PENDING') ...[
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.trash, color: Colors.redAccent, size: 20),
-                      onPressed: () => _confirmDeleteOffer(myOffer['id']),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: const Color(0xFF16A34A).withValues(alpha:0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Offer Sent Successfully', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF166534))),
+                        Text('Waiting for neighbour\'s response', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF15803D))),
+                      ],
                     ),
-                  ],
+                  ),
+                  if (myOffer.isNotEmpty && myOffer['status'] == 'PENDING')
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.trash_circle_fill, color: Colors.redAccent, size: 28),
+                      onPressed: () => _confirmDeleteOffer(myOffer['id']),
+                      tooltip: 'Cancel Offer',
+                    ),
                 ],
               ),
             )
@@ -1169,17 +1270,17 @@ class _UrgentRequestDetailPageState extends State<UrgentRequestDetailPage> with 
                     onPressed: _showOfferBottomSheet,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFEF4444),
-                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      elevation: 10,
-                      shadowColor: const Color(0xFFEF4444).withValues(alpha:0.5),
+                      elevation: 8,
+                      shadowColor: const Color(0xFFEF4444).withValues(alpha:0.4),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.pan_tool_alt_rounded, color: Colors.white, size: 24),
                         const SizedBox(width: 12),
-                        Text('I Can Help', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
+                        Text('I Can Help!', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
                       ],
                     ),
                   ),

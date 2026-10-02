@@ -12,6 +12,7 @@ import 'package:demo/core/theme/app_colors.dart';
 import 'package:demo/core/presentation/widgets/animated_flying_button.dart';
 import '../../../core/data/models/listing.dart';
 import '../../../core/data/repositories/listing_repository.dart';
+import '../../../core/location/location_autocomplete_field.dart';
 
 class EditExchangePostPage extends StatefulWidget {
   final Listing listing;
@@ -56,6 +57,8 @@ class _EditExchangePostPageState extends State<EditExchangePostPage> {
   DateTime? _availableFrom;
   bool _availableImmediately = false;
   final _locationController = TextEditingController();
+  double? _selectedLatitude;
+  double? _selectedLongitude;
   final _tagInputController = TextEditingController();
   final _includedInputController = TextEditingController();
   final List<String> _tags = [];
@@ -72,6 +75,8 @@ class _EditExchangePostPageState extends State<EditExchangePostPage> {
     _quantityController.text = (widget.listing.quantity ?? 1).toString();
     _selectedCondition = widget.listing.condition ?? 'Good';
     _locationController.text = widget.listing.locationName ?? '';
+    _selectedLatitude = widget.listing.latitude;
+    _selectedLongitude = widget.listing.longitude;
     _existingImages.addAll(widget.listing.photoUrls);
     
     // Reverse map category ID to name
@@ -202,7 +207,7 @@ class _EditExchangePostPageState extends State<EditExchangePostPage> {
       final listing = Listing(
         id: widget.listing.id,
         ownerId: user.id,
-        mode: 'GIVE',
+        mode: 'EXCHANGE',
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         categoryId: _selectedCategory!.toLowerCase().replaceAll(' & ', '_').replaceAll(' ', '_'),
@@ -212,6 +217,8 @@ class _EditExchangePostPageState extends State<EditExchangePostPage> {
         brand: _brandController.text.trim(),
         quantity: int.tryParse(_quantityController.text) ?? 1,
         locationName: _locationController.text.trim(),
+        latitude: _selectedLatitude,
+        longitude: _selectedLongitude,
         availability: [
           _availableImmediately ? DateTime.now().toIso8601String() : _availableFrom!.toIso8601String(),
         ],
@@ -495,10 +502,16 @@ class _EditExchangePostPageState extends State<EditExchangePostPage> {
             // Location
             _buildLabel('Pickup Location *'),
             const SizedBox(height: 8),
-            TextFormField(
+            LocationAutocompleteField(
               controller: _locationController,
-              validator: (v) => v!.isEmpty ? 'Required' : null,
+              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               decoration: _inputDecoration('e.g. My house, Coffee shop on 5th Ave', prefixIcon: Icons.location_on_outlined),
+              onSelected: (suggestion) {
+                setState(() {
+                  _selectedLatitude = suggestion.lat;
+                  _selectedLongitude = suggestion.lon;
+                });
+              },
             ),
             const SizedBox(height: 24),
 

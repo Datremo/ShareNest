@@ -46,8 +46,27 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
   @override
   void initState() {
     super.initState();
+    _determinePosition();
     _loadData();
     _setupRealtime();
+  }
+
+  Future<void> _determinePosition() async {
+    try {
+      bool serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+      geo.LocationPermission permission = await geo.Geolocator.checkPermission();
+      if (permission == geo.LocationPermission.denied) {
+        permission = await geo.Geolocator.requestPermission();
+        if (permission == geo.LocationPermission.denied) return;
+      }
+      if (permission == geo.LocationPermission.deniedForever) return;
+
+      final position = await geo.Geolocator.getCurrentPosition();
+      if (mounted) setState(() => _mapCenter = position);
+    } catch (e) {
+      debugPrint('Error getting location: $e');
+    }
   }
 
   void _setupRealtime() {
@@ -83,6 +102,7 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
           .from('urgent_requests')
           .select('*, profiles(*)')
           .eq('status', 'ACTIVE')
+          .gte('expires_at', DateTime.now().toUtc().toIso8601String())
           .order('created_at', ascending: false);
       
       if (mounted) {
@@ -136,9 +156,22 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
 
   List<UrgentRequestWithProfile> get _filteredRequests {
     return _urgentRequests.where((wrapper) {
-      if (_activeFilters.isEmpty) return true; // Show all if none selected
-      final level = _getUrgencyLevel(wrapper.request.neededBy);
-      return _activeFilters.contains(level);
+      if (_activeFilters.isNotEmpty) {
+        final level = _getUrgencyLevel(wrapper.request.neededBy);
+        if (!_activeFilters.contains(level)) return false;
+      }
+      
+      if (_searchRadiusMeters < 10000000 && _mapCenter != null && wrapper.request.lat != null && wrapper.request.lng != null) {
+        double distanceInMeters = geo.Geolocator.distanceBetween(
+          _mapCenter!.latitude,
+          _mapCenter!.longitude,
+          wrapper.request.lat!,
+          wrapper.request.lng!,
+        );
+        if (distanceInMeters > _searchRadiusMeters) return false;
+      }
+      
+      return true;
     }).toList();
   }
 
@@ -571,12 +604,24 @@ class _LiveRadarDashboardPageState extends State<LiveRadarDashboardPage> {
 Widget _buildListView() {
     final filteredRequests = _urgentRequests.where((wrapper) {
       final req = wrapper.request;
-      if (_selectedFilter == 'All') return true;
-      final level = _getUrgencyLevel(req.neededBy);
-      if (_selectedFilter == 'Need it now' && level == UrgencyLevel.now) return true;
-      if (_selectedFilter == 'Soon' && level == UrgencyLevel.soon) return true;
-      if (_selectedFilter == 'Flexible' && level == UrgencyLevel.flexible) return true;
-      return false;
+      if (_selectedFilter != 'All') {
+        final level = _getUrgencyLevel(req.neededBy);
+        if (_selectedFilter == 'Need it now' && level != UrgencyLevel.now) return false;
+        if (_selectedFilter == 'Soon' && level != UrgencyLevel.soon) return false;
+        if (_selectedFilter == 'Flexible' && level != UrgencyLevel.flexible) return false;
+      }
+      
+      if (_searchRadiusMeters < 10000000 && _mapCenter != null && req.lat != null && req.lng != null) {
+        double distanceInMeters = geo.Geolocator.distanceBetween(
+          _mapCenter!.latitude,
+          _mapCenter!.longitude,
+          req.lat!,
+          req.lng!,
+        );
+        if (distanceInMeters > _searchRadiusMeters) return false;
+      }
+      
+      return true;
     }).toList();
 
     int countNow = _urgentRequests.where((r) => _getUrgencyLevel(r.request.neededBy) == UrgencyLevel.now).length;
@@ -741,10 +786,25 @@ Widget _buildListView() {
                       _buildFilterChip('Soon', Icons.access_time_filled, color: const Color(0xFFFF9500)),
                       _buildFilterChip('Flexible', Icons.eco_rounded, color: const Color(0xFF34C759)),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey[300]!)),
-                        child: Row(children: [const Icon(Icons.location_on_rounded, size: 14, color: Colors.black87), const SizedBox(width: 4), Text('Nearest', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold)), const Icon(Icons.keyboard_arrow_down, size: 16)]),
+                      PopupMenuButton<int>(
+                        onSelected: (val) => setState(() => _searchRadiusMeters = val),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(value: 500, child: Text('Within 500m')),
+                          const PopupMenuItem(value: 1000, child: Text('Within 1km')),
+                          const PopupMenuItem(value: 2000, child: Text('Within 2km')),
+                          const PopupMenuItem(value: 5000, child: Text('Within 5km')),
+                          const PopupMenuItem(value: 10000000, child: Text('All Radius')),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey[300]!)),
+                          child: Row(children: [
+                            const Icon(Icons.location_on_rounded, size: 14, color: Colors.black87), 
+                            const SizedBox(width: 4), 
+                            Text(_searchRadiusMeters == 10000000 ? 'All Radius' : '${_searchRadiusMeters < 1000 ? _searchRadiusMeters.toString() + 'm' : (_searchRadiusMeters/1000).toStringAsFixed(0) + 'km'}', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold)), 
+                            const Icon(Icons.keyboard_arrow_down, size: 16)
+                          ]),
+                        ),
                       )
                     ],
                   ),

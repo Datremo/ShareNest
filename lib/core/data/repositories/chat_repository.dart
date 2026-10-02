@@ -76,21 +76,26 @@ class ChatRepository {
     if (currentUserId == null) return;
 
     try {
-      await _client.from('messages').insert({
+      final response = await _client.from('messages').insert({
         'conversation_id': conversationId,
         'sender_id': currentUserId,
         'message_type': messageType,
         'content': content,
         'metadata': metadata,
-      });
+      }).select();
+      
+      print('Message inserted successfully: $response');
 
       // Update the updated_at on the conversation to bubble it to the top
       await _client.from('conversations').update({
         'updated_at': DateTime.now().toUtc().toIso8601String()
       }).eq('id', conversationId);
 
-    } catch (e) {
+    } catch (e, stacktrace) {
       print('Error sending message: $e');
+      print('Stacktrace: $stacktrace');
+      // Rethrow to allow the UI to handle it if needed
+      rethrow;
     }
   }
 
@@ -134,6 +139,49 @@ class ChatRepository {
       }).eq('conversation_id', conversationId).eq('profile_id', currentUserId);
     } catch (e) {
       print('Error marking conversation as read: $e');
+    }
+  }
+
+  // 6. Delete a conversation entirely
+  Future<void> deleteConversation(String conversationId) async {
+    try {
+      // In Supabase, if RLS allows deleting, this will cascade and delete messages/members.
+      await _client.from('conversations').delete().eq('id', conversationId);
+    } catch (e) {
+      print('Error deleting conversation: $e');
+      rethrow;
+    }
+  }
+
+  // 7. Edit a message
+  Future<void> editMessage(String messageId, String newContent, {Map<String, dynamic>? currentMetadata}) async {
+    try {
+      final updatedMetadata = Map<String, dynamic>.from(currentMetadata ?? {});
+      updatedMetadata['is_edited'] = true;
+      
+      await _client.from('messages').update({
+        'content': newContent,
+        'metadata': updatedMetadata,
+      }).eq('id', messageId);
+    } catch (e) {
+      print('Error editing message: $e');
+      rethrow;
+    }
+  }
+
+  // 8. Delete a single message (soft delete)
+  Future<void> deleteMessage(String messageId, {Map<String, dynamic>? currentMetadata}) async {
+    try {
+      final updatedMetadata = Map<String, dynamic>.from(currentMetadata ?? {});
+      updatedMetadata['is_deleted'] = true;
+      
+      await _client.from('messages').update({
+        'content': 'This message was deleted',
+        'metadata': updatedMetadata,
+      }).eq('id', messageId);
+    } catch (e) {
+      print('Error deleting message: $e');
+      rethrow;
     }
   }
 }

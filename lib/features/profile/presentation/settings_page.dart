@@ -3,8 +3,15 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  bool _wantsUrgentAlerts = true;
 
   Future<void> _logout(BuildContext context) async {
     await Supabase.instance.client.auth.signOut();
@@ -98,6 +105,19 @@ class SettingsPage extends StatelessWidget {
             _buildSettingsItem(
               icon: Icons.notifications_outlined,
               title: 'Notifications',
+              onTap: () {},
+            ),
+            _buildSettingsItem(
+              icon: Icons.notifications_active_outlined,
+              title: 'Emergency Alerts (1km)',
+              trailing: Switch(
+                value: _wantsUrgentAlerts,
+                activeColor: AppColors.primary,
+                onChanged: (val) {
+                  setState(() => _wantsUrgentAlerts = val);
+                  // TODO: Update wants_urgent_alerts in Supabase profiles
+                },
+              ),
               onTap: () {},
             ),
             _buildSettingsItem(

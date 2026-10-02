@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/data/repositories/profile_repository.dart';
+import '../../../core/location/location_autocomplete_field.dart';
+import '../../../core/location/location_core.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -20,13 +22,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isSaving = false;
   String? _newAvatarUrl;
 
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _usernameController = TextEditingController();
   final _bioController = TextEditingController();
   final _locationController = TextEditingController();
   final _interestController = TextEditingController();
   
   List<String> _interests = [];
+  LocationSuggestion? _selectedLocation;
 
   @override
   void initState() {
@@ -36,7 +40,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _bioController.dispose();
     _locationController.dispose();
     _interestController.dispose();
@@ -47,7 +52,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (_userId == null) return;
     final profile = await _profileRepo.getProfile(_userId!);
     if (profile != null) {
-      _nameController.text = profile.displayName;
+      // Handle missing fullName gracefully by falling back to displayName
+      final fullName = profile.fullName ?? profile.displayName;
+      final parts = fullName.trim().split(' ');
+      _firstNameController.text = parts.isNotEmpty ? parts.first : '';
+      _lastNameController.text = parts.length > 1 ? parts.sublist(1).join(' ') : '';
       _usernameController.text = profile.username ?? '';
       _bioController.text = profile.bio ?? '';
       _locationController.text = profile.locationName ?? '';
@@ -104,18 +113,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _saveProfile() async {
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name cannot be empty')));
+    if (_firstNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('First Name cannot be empty')));
+      return;
+    }
+    if (_lastNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Last Name cannot be empty')));
       return;
     }
     setState(() => _isSaving = true);
     try {
       await _profileRepo.updateProfile(
-        displayName: _nameController.text.trim(),
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
         username: _usernameController.text.trim(),
         bio: _bioController.text.trim(),
         photoUrl: _newAvatarUrl,
-        locationName: _locationController.text.trim(),
+        locationName: _selectedLocation?.displayName ?? _locationController.text.trim(),
         interests: _interests,
       );
       if (mounted) {
@@ -234,9 +248,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  _buildTextField(
-                    label: 'Full Name',
-                    controller: _nameController,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          label: 'First Name',
+                          controller: _firstNameController,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildTextField(
+                          label: 'Last Name',
+                          controller: _lastNameController,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
                   _buildTextField(
@@ -246,11 +273,38 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     icon: Icons.alternate_email,
                   ),
                   const SizedBox(height: 24),
-                  _buildTextField(
-                    label: 'Location',
+                  const Text(
+                    'Location',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  LocationAutocompleteField(
                     controller: _locationController,
-                    hintText: 'e.g. Sainagar, Old Panvel',
-                    icon: Icons.location_on_outlined,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      hintText: 'e.g. Sainagar, Old Panvel',
+                      hintStyle: TextStyle(color: Colors.grey.shade400),
+                      prefixIcon: const Icon(Icons.location_on_outlined, color: AppColors.primaryDark, size: 22),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary),
+                      ),
+                    ),
+                    onSelected: (loc) {
+                      setState(() {
+                        _selectedLocation = loc;
+                      });
+                    },
                   ),
                   const SizedBox(height: 24),
                   _buildTextField(

@@ -21,6 +21,8 @@ class Listing {
   final DateTime? createdAt;
   @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
+  @JsonKey(name: 'expires_at')
+  final DateTime? expiresAt;
 
   final String? condition;
   final String? brand;
@@ -43,6 +45,7 @@ class Listing {
     this.longitude,
     this.createdAt,
     this.updatedAt,
+    this.expiresAt,
     this.condition,
     this.brand,
     this.quantity,
@@ -72,6 +75,7 @@ class Listing {
     double? longitude,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? expiresAt,
     String? condition,
     String? brand,
     int? quantity,
@@ -92,6 +96,7 @@ class Listing {
       longitude: longitude ?? this.longitude,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      expiresAt: expiresAt ?? this.expiresAt,
       condition: condition ?? this.condition,
       brand: brand ?? this.brand,
       quantity: quantity ?? this.quantity,

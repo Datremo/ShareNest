@@ -102,7 +102,7 @@ class _OwnerRequestsListPageState extends State<OwnerRequestsListPage> {
                             const Icon(Icons.star, color: Colors.amber, size: 14),
                             const SizedBox(width: 4),
                             Text(
-                              '${profile.trustScore}',
+                              '${profile.calculatedTrustScore}',
                               style: TextStyle(fontSize: 13, color: Colors.grey[700], fontWeight: FontWeight.w600),
                             ),
                           ],

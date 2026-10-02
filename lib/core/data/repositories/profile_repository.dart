@@ -22,7 +22,8 @@ class ProfileRepository {
 
   /// Updates the profile for the currently logged in user
   Future<void> updateProfile({
-    required String displayName,
+    required String firstName,
+    required String lastName,
     String? username,
     String? bio,
     String? photoUrl,
@@ -33,7 +34,8 @@ class ProfileRepository {
     if (user == null) throw Exception('Must be logged in to update profile');
 
     final updates = {
-      'display_name': displayName,
+      'id': user.id, // needed for upsert
+      'display_name': '$firstName $lastName'.trim(),
       'username': username,
       'bio': bio,
       'photo_url': photoUrl,
@@ -42,7 +44,7 @@ class ProfileRepository {
       'updated_at': DateTime.now().toIso8601String(),
     };
 
-    await _supabase.from('profiles').update(updates).eq('id', user.id);
+    await _supabase.from('profiles').upsert(updates);
   }
 
   /// Fetches real counts for the profile dashboard
@@ -60,7 +62,7 @@ class ProfileRepository {
           .from('item_requests')
           .select('id')
           .eq('requester_id', userId)
-          .neq('status', 'COMPLETED')
+          .inFilter('status', ['PENDING', 'ACCEPTED', 'ACTIVE'])
           .count(CountOption.exact);
 
       // 3. My Borrows (accepted requests sent by user)

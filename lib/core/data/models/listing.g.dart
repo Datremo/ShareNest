@@ -27,6 +27,9 @@ Listing _$ListingFromJson(Map<String, dynamic> json) => Listing(
   updatedAt: json['updated_at'] == null
       ? null
       : DateTime.parse(json['updated_at'] as String),
+  expiresAt: json['expires_at'] == null
+      ? null
+      : DateTime.parse(json['expires_at'] as String),
   condition: json['condition'] as String?,
   brand: json['brand'] as String?,
   quantity: (json['quantity'] as num?)?.toInt(),
@@ -50,6 +53,7 @@ Map<String, dynamic> _$ListingToJson(Listing instance) => <String, dynamic>{
   'longitude': instance.longitude,
   'created_at': instance.createdAt?.toIso8601String(),
   'updated_at': instance.updatedAt?.toIso8601String(),
+  'expires_at': instance.expiresAt?.toIso8601String(),
   'condition': instance.condition,
   'brand': instance.brand,
   'quantity': instance.quantity,

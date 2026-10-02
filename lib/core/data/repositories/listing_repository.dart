@@ -95,6 +95,7 @@ class ListingRepository {
           .from('listings')
           .select()
           .eq('owner_id', idToUse)
+          .or('is_urgent_fulfillment.is.null,is_urgent_fulfillment.eq.false')
           .order('created_at', ascending: false);
       return (response as List).map((e) => Listing.fromJson(e)).toList();
     } catch (e) {

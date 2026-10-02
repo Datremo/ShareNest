@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -84,10 +85,60 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             ),
           ),
           
+          // Glowing Ambient Orbs for Liquid Glass
+          Positioned(
+            top: -100 + (_scrollOffset * 0.2),
+            right: -50,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF10B981).withValues(alpha: 0.15),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 250 - (_scrollOffset * 0.1),
+            left: -100,
+            child: Container(
+              width: 280,
+              height: 280,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 50 + (_scrollOffset * 0.15),
+            right: 50,
+            child: Container(
+              width: 350,
+              height: 350,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ),
+
           // Readability Overlay
           Positioned.fill(
             child: Container(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: Colors.white.withValues(alpha: 0.4),
             ),
           ),
 
@@ -248,20 +299,44 @@ class _FrostedCardState extends State<_FrostedCard> {
         curve: Curves.easeOutBack,
         child: Container(
           margin: widget.margin,
-          padding: widget.padding,
           decoration: BoxDecoration(
-            color: widget.baseColor.withValues(alpha: 0.78),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1),
+            borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
+                color: widget.baseColor == Colors.white 
+                    ? Colors.black.withValues(alpha: 0.05) 
+                    : widget.baseColor.withValues(alpha: 0.15),
+                blurRadius: 24,
+                spreadRadius: 0,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: widget.child,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                padding: widget.padding,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    width: 1.5,
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      widget.baseColor.withValues(alpha: 0.6),
+                      widget.baseColor.withValues(alpha: 0.2),
+                    ],
+                  ),
+                ),
+                child: widget.child,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -485,7 +560,18 @@ class _YourActivity extends StatelessWidget {
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
                 maxY: (activity.values.isEmpty ? 10 : activity.values.map((e) => (e as num).toDouble()).reduce((a, b) => a > b ? a : b)) * 1.2,
-                barTouchData: BarTouchData(enabled: false),
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (group) => Colors.black.withOpacity(0.8),
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${rod.toY.toInt()}',
+                        GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold),
+                      );
+                    },
+                  ),
+                ),
                 titlesData: FlTitlesData(
                   show: true,
                   bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (val, meta) => Text(activity.keys.elementAt(val.toInt()), style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)))),
@@ -533,10 +619,10 @@ class _ActivityMix extends StatelessWidget {
                       PieChartData(
                         sectionsSpace: 2, centerSpaceRadius: 30,
                         sections: [
-                          if (l > 0) PieChartSectionData(color: const Color(0xFF10B981), value: l, title: '', radius: 20),
-                          if (b > 0) PieChartSectionData(color: const Color(0xFF3B82F6), value: b, title: '', radius: 20),
-                          if (g > 0) PieChartSectionData(color: const Color(0xFFF59E0B), value: g, title: '', radius: 20),
-                          if (r > 0) PieChartSectionData(color: const Color(0xFF8B5CF6), value: r, title: '', radius: 20),
+                          if (l > 0) PieChartSectionData(color: const Color(0xFF10B981), value: l, title: '${l.toInt()}', radius: 25, titleStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          if (b > 0) PieChartSectionData(color: const Color(0xFF3B82F6), value: b, title: '${b.toInt()}', radius: 25, titleStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          if (g > 0) PieChartSectionData(color: const Color(0xFFF59E0B), value: g, title: '${g.toInt()}', radius: 25, titleStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          if (r > 0) PieChartSectionData(color: const Color(0xFF8B5CF6), value: r, title: '${r.toInt()}', radius: 25, titleStyle: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -1008,7 +1094,15 @@ class _AdvancedReceiptCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       child: InkWell(
         onTap: () {
-          // Open receipt placeholder (preserves existing functional navigation if any)
+          final isOwner = item['is_owner'] ?? false;
+          final id = item['id'];
+          if (id != null) {
+            if (isOwner) {
+              context.push('/owner-request-detail/$id');
+            } else {
+              context.push('/requester-request-detail/$id');
+            }
+          }
         },
         child: Row(
           children: [

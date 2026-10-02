@@ -83,9 +83,9 @@ class _SignupScreenState extends State<SignupScreen> {
         email: email,
         password: password,
         data: {
-          'first_name': _firstNameController.text.trim(),
-          'last_name': _lastNameController.text.trim(),
+          'full_name': '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
           'username': _usernameController.text.trim(),
+          'location_name': _selectedLocation?.displayName ?? _locationController.text.trim(),
         },
       );
       
@@ -99,21 +99,24 @@ class _SignupScreenState extends State<SignupScreen> {
 
           final locName = _selectedLocation?.displayName ?? _locationController.text.trim();
 
-          // Update because the auth trigger creates the row
-          await Supabase.instance.client.from('profiles').update({
-             'full_name': '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
-             'display_name': _firstNameController.text.trim(),
+          // Upsert to handle cases where the auth trigger might be delayed or missing
+          await Supabase.instance.client.from('profiles').upsert({
+             'id': userId,
+             'display_name': '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
              'username': _usernameController.text.trim(),
              'location_name': locName,
-             'lat': _selectedLocation?.lat,
-             'lon': _selectedLocation?.lon,
              if (interestsList.isNotEmpty) 'interests': interestsList,
-          }).eq('id', userId);
+          });
       }
 
       if (mounted) context.go('/home');
     } on AuthException catch (e) {
-      _showMessage(e.message ?? 'Signup failed. Please try again.');
+      final msg = e.message.toLowerCase();
+      if (msg.contains('socket') || msg.contains('host lookup') || msg.contains('http') || msg.contains('timeout')) {
+        _showMessage('Network error. Please check your internet connection.');
+      } else {
+        _showMessage(e.message ?? 'Signup failed. Please try again.');
+      }
     } catch (e) {
       _showMessage('An error occurred during signup.');
     } finally {

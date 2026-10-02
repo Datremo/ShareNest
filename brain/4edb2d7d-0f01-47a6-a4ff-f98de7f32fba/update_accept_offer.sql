@@ -38,28 +38,65 @@ BEGIN
   WHERE urgent_request_id = v_offer.urgent_request_id
   AND id != p_offer_id;
 
+  -- 4.5. Archive the conversations of those rejected offers so they close immediately
+  UPDATE public.conversations
+  SET status = 'ARCHIVED'
+  WHERE urgent_offer_id IN (
+    SELECT id FROM public.urgent_request_offers
+    WHERE urgent_request_id = v_offer.urgent_request_id
+    AND id != p_offer_id
+  );
+
   -- 5. Mark the urgent_request as ACCEPTED (or IN_PROGRESS)
   UPDATE public.urgent_requests
   SET status = 'ACCEPTED', updated_at = now()
   WHERE id = v_offer.urgent_request_id;
 
   -- 6. The Bridge: Determine the listing ID
-  IF v_offer.offered_listing_id IS NOT NULL THEN
-    v_listing_id := v_offer.offered_listing_id;
-  ELSE
-    -- Create a hidden private listing for this transaction
-    INSERT INTO public.listings (
-      owner_id, title, description, mode, status, location_name, category_id, is_urgent_fulfillment
-    ) VALUES (
-      v_offer.helper_id, 
-      'SOS Fulfillment: ' || v_request.title, 
-      'Automatic listing for Need It Now fulfillment.', 
-      UPPER(v_offer.mode), 
-      'ACTIVE', 
-      (SELECT location_name FROM public.profiles WHERE id = v_offer.helper_id LIMIT 1), 
-      'other',
-      TRUE
-    ) RETURNING id INTO v_listing_id;
+  BEGIN
+    -- Check if offered_listing_id exists on v_offer record dynamically
+    IF (v_offer.offered_listing_id IS NOT NULL) THEN
+      v_listing_id := v_offer.offered_listing_id;
+    END IF;
+  EXCEPTION WHEN undefined_column THEN
+    -- Column doesn't exist, which is fine
+  END;
+
+  IF v_listing_id IS NULL THEN
+    -- Parse available_for_duration to see if photos were provided
+    DECLARE
+      v_offer_photos JSONB;
+      v_photo_urls TEXT[] := '{}';
+    BEGIN
+      BEGIN
+        v_offer_photos := (v_offer.available_for_duration::jsonb)->'photos';
+        IF jsonb_array_length(v_offer_photos) > 0 THEN
+          SELECT array_agg(x::text) INTO v_photo_urls
+          FROM jsonb_array_elements_text(v_offer_photos) x;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN
+        v_photo_urls := '{}';
+      END;
+
+      IF array_length(v_photo_urls, 1) IS NULL AND v_request.photo_urls IS NOT NULL THEN
+        v_photo_urls := v_request.photo_urls;
+      END IF;
+
+      -- Create a hidden private listing for this transaction
+      INSERT INTO public.listings (
+        owner_id, title, description, mode, status, location_name, category_id, is_urgent_fulfillment, photo_urls
+      ) VALUES (
+        v_offer.helper_id, 
+        'SOS Fulfillment: ' || v_request.title, 
+        'Automatic listing for Need It Now fulfillment.', 
+        'LEND', -- Ensure it uses LEND or GIVE (can default to LEND for SOS)
+        'UNAVAILABLE', 
+        (SELECT location_name FROM public.profiles WHERE id = v_offer.helper_id LIMIT 1), 
+        'other',
+        TRUE,
+        v_photo_urls
+      ) RETURNING id INTO v_listing_id;
+    END;
   END IF;
 
   -- 7. Create an ACCEPTED ItemRequest linking the two
@@ -73,6 +110,13 @@ BEGIN
     now() + interval '1 day',
     TRUE
   ) RETURNING id INTO v_item_request_id;
+
+  -- 8. Morph the existing conversation!
+  -- Attach the new listing_id and item_request_id to the conversation that was started for this urgent offer
+  UPDATE public.conversations
+  SET listing_id = v_listing_id,
+      item_request_id = v_item_request_id
+  WHERE urgent_offer_id = p_offer_id;
 
   -- Return the generated request ID to navigate to chat/receipt
   RETURN v_item_request_id;
